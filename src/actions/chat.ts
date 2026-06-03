@@ -129,7 +129,12 @@ export async function embedDocumentationData(connectionId: string) {
     }
 }
 
-export async function chatWithSchema(query: string, connectionId: string, history: any[] = []) {
+export async function chatWithSchema(
+    query: string,
+    connectionId: string,
+    history: any[] = [],
+    returnContext: boolean = false
+) {
     let neo4jSession;
     try {
         console.log(`[Chat Backend] Received Query: "${query}"`);
@@ -234,7 +239,12 @@ ${vectorContextString}
 
         console.log(`[Chat Backend] Groq inference successful. Generated ${citations.length} citations.`);
 
-        return { success: true, answer: finalAnswer, citations };
+        return {
+            success: true,
+            answer: finalAnswer,
+            citations,
+            context: returnContext ? vectorContextItems.map(c => c.content) : undefined
+        };
 
     } catch (e: any) {
         console.error("Chat Action Error:", e);
