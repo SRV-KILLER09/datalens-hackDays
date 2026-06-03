@@ -37,6 +37,10 @@ DataLens AI connects to your database and instantly generates:
 - 🔍 Deep Table Inspection
 - 🤖 AI-Powered Schema Chat
 - 📈 Schema Analytics Dashboard
+- 🛡️ Data Quality Diagnostics & Health Score
+- ⚡ Executive Business Report & Governance Insights
+- 📖 Standalone Reference Manual Portal (Widescreen)
+- 🖨️ Premium Dark-Themed PDF & Multi-Format Exports
 
 No manual work. No schema guessing. No documentation writing.
 
@@ -44,13 +48,14 @@ No manual work. No schema guessing. No documentation writing.
 
 # 🔥 Live Demo Flow
 
-1. Sign in with Google
+1. Sign in with Google / Email
 2. Paste your database URI
 3. Click Connect
 4. Watch your schema transform into:
    - Interactive documentation
    - Relationship maps
    - AI query interface
+   - Widescreen reference manual
 
 Time to insight: **< 30 seconds**
 
@@ -107,58 +112,42 @@ See:
 
 ---
 
-## 🤖 AI Schema Chat (Prototype)
+## 🛡️ Data Quality Diagnostics & Health Score (New)
 
-Ask:
-
-- “Which tables reference customers?”
-- “Explain the orders schema.”
-- “What relationships does Movie have?”
-- “How many foreign keys exist?”
-
-The AI understands metadata — no raw sensitive data exposure.
+Automatically audit your database layout for structural integrity:
+- **Estimated Database Grade:** A dynamic radial health SVG tracking overall database design scores.
+- **Data Type Profile:** Visual breakdown chart detailing string, numeric, temporal, boolean, and other data field ratios.
+- **Quality Audit Issues Log:** Identifies critical issues and warning items (like missing constraints, key inconsistencies, or poor naming structures) with intelligent remediation recommendations.
 
 ---
 
-## 📈 Dashboard Metrics
+## 📖 Widescreen Reference Manual & Portal (New)
 
-- Total tables
-- Total relationships
-- Schema complexity
-- Index count
-- Graph density
-- Structural insights
+A dedicated fullscreen documentation view accessible at `/dashboard/tables/[id]/document` featuring:
+- **Interactive Entity Network Graph:** A dynamic coordinate-mapped circular SVG relationship visualization highlighting schema pathways.
+- **Table Navigation Sidebar:** Live sidebar featuring an instant keyword search bar filtering tables and columns.
+- **Book-Style Markdown Layout:** Beautifully structured markdown headings, uppercase monospace typography, and clean borders.
 
 ---
 
-# 🧪 Example Schema
+## 🖨️ Premium Dark-Themed PDF Print Engine (New)
 
-## Relational Example
+A browser-native print layout tailored for clean corporate document sharing:
+- **Opaque Dark Theme:** Custom overrides forcing solid dark backgrounds (`#0d0d0d`, `#141414`) and contrasting white/grey text colors, completely avoiding browser print engine washouts.
+- **Page-Break Safeguards:** Keeps table rows (`tr`), headers, metrics grids, and overview cards on single pages cleanly, preventing orphan headings from showing up at the bottom of pages.
+- **Multi-Format Exports:** Export options for Raw Dict JSON, Dict MD, Full Report MD, and Full Report JSON files.
 
-```sql
-CREATE TABLE customers (
-  customer_id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT UNIQUE,
-  created_at TIMESTAMP
-);
+---
 
-CREATE TABLE orders (
-  order_id TEXT PRIMARY KEY,
-  customer_id TEXT REFERENCES customers(customer_id),
-  total NUMERIC
-);
-```
+## 🤖 AI Schema Chat & Business Report Generator
 
-## Graph Example
-
-```cypher
-CREATE (:Person {id:'1', name:'John Doe'});
-CREATE (:Movie {id:'100', title:'The Matrix'});
-
-MATCH (p:Person {name:'John Doe'}), (m:Movie {title:'The Matrix'})
-CREATE (p)-[:ACTED_IN {role:'Neo'}]->(m);
-```
+- **Executive Overview:** Formulates target domain labels, business overview descriptions, key findings, data governance scopes, and overall schema health assessments using Gemini 2.5 Flash.
+- **AI Schema Chat:** Ask:
+  - “Which tables reference customers?”
+  - “Explain the orders schema.”
+  - “What relationships does Movie have?”
+  - “How many foreign keys exist?”
+  - The AI operates entirely on schema metadata — ensuring zero raw sensitive data exposure.
 
 ---
 
@@ -166,15 +155,17 @@ CREATE (p)-[:ACTED_IN {role:'Neo'}]->(m);
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Next.js 13 (App Router) |
-| UI | Tailwind CSS + shadcn/ui |
-| Backend | Node.js API Routes |
+| Frontend | Next.js 16 (App Router + Turbopack) |
+| UI | Tailwind CSS + shadcn/ui + Lucide Icons |
+| Backend | Next.js Server Actions & API Routes |
 | ORM | Drizzle ORM |
-| Auth | NextAuth + Google OAuth |
+| Auth | Better Auth (Google OAuth & Credentials) |
 | Databases | PostgreSQL, MySQL, Snowflake, Neo4j |
-|    LLM    | Gemini 3 Flash , MixedBread , Groq  |
+| Embeddings | Mixedbread AI (High-dimensional Vector embeddings) |
+| Vector DB | Qdrant Cloud |
+| LLM | Gemini 2.5 Flash (API Key access) |
 | Language | TypeScript |
-| Deployment | Vercel-ready |
+| Deployment | Vercel |
 
 ---
 
@@ -186,13 +177,18 @@ cd data-lens-ai
 npm install
 ```
 
-Create `.env.local`:
+Create `.env`:
 
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/mydb
-NEXTAUTH_SECRET=your_secret
+BETTER_AUTH_SECRET=your_secret
+BETTER_AUTH_URL=http://localhost:3000
 GOOGLE_CLIENT_ID=your_id
 GOOGLE_CLIENT_SECRET=your_secret
+GEMINI_API_KEY=your_gemini_key
+QDRANT_URL=your_qdrant_url
+QDRANT_API_KEY=your_qdrant_key
+MIXEDBREAD_API_KEY=your_mixedbread_key
 ```
 
 Run:
@@ -221,12 +217,12 @@ http://localhost:3000
 
 # 🚀 Future Scope
 
+- [x] Documentation export (PDF / Markdown / JSON)  
+- [x] Data quality scoring & diagnostics
 - Column-level lineage tracking  
 - Schema versioning  
-- Documentation export (PDF / Markdown)  
 - Slack / Notion integration  
 - Advanced graph analytics  
-- Data quality scoring  
 
 ---
 
