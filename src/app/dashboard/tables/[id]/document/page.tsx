@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { Loader2, ArrowLeft, Database, Search, LayoutTemplate, Activity, CheckCircle2, Shield, Link, AlertTriangle, BookOpen, Lock, Sparkles, Printer, TrendingUp, Network } from "lucide-react";
 // @ts-ignore
 import ReactMarkdown from "react-markdown";
@@ -231,6 +231,59 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTable, setActiveTable] = useState("");
+    const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
+
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, []);
+
+    const toggleTableExpand = (tableName: string) => {
+        setExpandedTables(prev => ({
+            ...prev,
+            [tableName]: !prev[tableName]
+        }));
+    };
+
+    const getTableFields = (content: string): { name: string; type: string }[] => {
+        const fields: { name: string; type: string }[] = [];
+        const lines = content.split("\n");
+        let inFieldsTable = false;
+        for (const line of lines) {
+            if (line.includes("|") && line.toLowerCase().includes("column") && line.toLowerCase().includes("type")) {
+                inFieldsTable = true;
+                continue;
+            }
+            if (inFieldsTable) {
+                if (!line.includes("|")) {
+                    if (fields.length > 0) {
+                        inFieldsTable = false;
+                    }
+                    continue;
+                }
+                if (line.includes("---")) {
+                    continue;
+                }
+                const parts = line.split("|").map(p => p.trim());
+                if (parts.length >= 3) {
+                    const name = parts[1].replace(/`/g, "").trim();
+                    const type = parts[2].replace(/`/g, "").trim();
+                    if (name && name.toLowerCase() !== "column" && !name.includes("---")) {
+                        fields.push({ name, type });
+                    }
+                }
+            }
+        }
+        return fields;
+    };
 
     useEffect(() => {
         if (authLoading) return;
@@ -271,7 +324,20 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
         if (doc.tableName === "__business_report__") return false;
         const query = searchQuery.toLowerCase().trim();
         if (!query) return true;
-        return doc.tableName.toLowerCase().includes(query) || doc.content.toLowerCase().includes(query);
+        
+        // Match table name
+        if (doc.tableName.toLowerCase().includes(query)) return true;
+        
+        // Match fields or types
+        const fields = getTableFields(doc.content);
+        const hasMatchedField = fields.some(f => 
+            f.name.toLowerCase().includes(query) || 
+            f.type.toLowerCase().includes(query)
+        );
+        if (hasMatchedField) return true;
+
+        // Fallback to general content match
+        return doc.content.toLowerCase().includes(query);
     });
 
     const getTypeCounts = () => {
@@ -639,15 +705,19 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                         </h1>
                         <p className="text-[10px] text-muted-foreground uppercase font-mono tracking-wider mt-0.5">Database: {id.slice(0, 8)}</p>
                     </div>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <div className="relative flex items-center">
+                        <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
                         <input
+                            ref={searchInputRef}
                             type="text"
                             placeholder="Search keywords, columns..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-border bg-background/50 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-muted-foreground/60 text-foreground"
+                            className="w-full pl-9 pr-14 py-2 text-xs rounded-lg border border-border bg-background/50 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-muted-foreground/60 text-foreground"
                         />
+                        <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[9px] font-mono bg-muted border border-border rounded text-muted-foreground/75 select-none pointer-events-none">
+                            Ctrl+K
+                        </kbd>
                     </div>
                 </div>
 
@@ -675,21 +745,74 @@ export default function DocumentPortalPage({ params }: { params: Promise<{ id: s
                                 </span>
                             )}
                         </div>
-                        <div className="space-y-0.5 max-h-[450px] overflow-y-auto pr-1">
-                            {filteredDocs.map((doc) => (
-                                <button
-                                    key={doc.tableName}
-                                    onClick={() => scrollToSection(`table-section-${doc.tableName}`, doc.tableName)}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-mono transition-all flex items-center justify-between group ${
-                                        activeTable === doc.tableName 
-                                            ? "bg-primary text-primary-foreground shadow-xs font-bold" 
-                                            : "text-muted-foreground hover:bg-muted/50"
-                                    }`}
-                                >
-                                    <span className="truncate">{doc.tableName}</span>
-                                    <span className="text-[9px] opacity-40 group-hover:opacity-100 transition-opacity font-sans">→</span>
-                                </button>
-                            ))}
+                        <div className="space-y-1.5 max-h-[450px] overflow-y-auto pr-1">
+                            {filteredDocs.map((doc) => {
+                                const fields = getTableFields(doc.content);
+                                const query = searchQuery.toLowerCase().trim();
+                                const matchedFields = query
+                                    ? fields.filter(f => f.name.toLowerCase().includes(query) || f.type.toLowerCase().includes(query))
+                                    : fields;
+                                
+                                const isExpanded = !!(query || expandedTables[doc.tableName]);
+                                const hasFields = fields.length > 0;
+
+                                return (
+                                    <div key={doc.tableName} className="space-y-1">
+                                        <button
+                                            onClick={() => {
+                                                scrollToSection(`table-section-${doc.tableName}`, doc.tableName);
+                                                if (!query) {
+                                                    toggleTableExpand(doc.tableName);
+                                                }
+                                            }}
+                                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-mono transition-all flex items-center justify-between group ${
+                                                activeTable === doc.tableName 
+                                                    ? "bg-primary/10 text-primary border border-primary/20 font-bold" 
+                                                    : "text-muted-foreground hover:bg-muted/50"
+                                            }`}
+                                        >
+                                            <span className="truncate flex items-center gap-1.5">
+                                                <span className="text-[9px] opacity-50 group-hover:opacity-80 transition-opacity">
+                                                    {isExpanded ? "▼" : "▶"}
+                                                </span>
+                                                {doc.tableName}
+                                            </span>
+                                            <span className="text-[9px] opacity-40 group-hover:opacity-100 transition-opacity font-sans">
+                                                {fields.length} cols
+                                            </span>
+                                        </button>
+
+                                        {isExpanded && hasFields && (
+                                            <div className="pl-5 pr-1 py-1 space-y-1 border-l border-border/50 ml-4 transition-all duration-200">
+                                                {matchedFields.map((field) => {
+                                                    const isFieldMatch = query && (
+                                                        field.name.toLowerCase().includes(query) || 
+                                                        field.type.toLowerCase().includes(query)
+                                                    );
+                                                    return (
+                                                        <div 
+                                                            key={field.name}
+                                                            className={`text-[10px] font-mono flex items-center justify-between py-0.5 px-1.5 rounded hover:bg-muted/30 transition-colors ${
+                                                                isFieldMatch 
+                                                                    ? "text-primary bg-primary/5 font-semibold" 
+                                                                    : "text-muted-foreground/80"
+                                                            }`}
+                                                        >
+                                                            <span className="truncate" title={field.name}>{field.name}</span>
+                                                            <span className="text-[8px] opacity-60 ml-2 truncate max-w-[80px]" title={field.type}>{field.type}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {matchedFields.length === 0 && (
+                                                    <div className="text-[9px] text-muted-foreground/60 italic pl-1.5 py-0.5">
+                                                        No matching columns
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                             {filteredDocs.length === 0 && (
                                 <div className="text-center py-6 text-muted-foreground italic text-xs">
                                     No matches found
