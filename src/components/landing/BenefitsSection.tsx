@@ -1,12 +1,29 @@
-"use client"
-import { Clock, ShieldCheck, Users, Bug } from "lucide-react";
+"use client";
+
+import { Clock, ShieldCheck, Users, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 
 const benefits = [
-  { icon: Clock, title: "Save hours", desc: "No more manual documentation." },
-  { icon: ShieldCheck, title: "Stay compliant", desc: "Automated governance insights." },
-  { icon: Users, title: "Empower teams", desc: "Anyone can understand data." },
-  { icon: Bug, title: "Prevent errors", desc: "Catch issues before they spread." },
+  {
+    icon: Clock,
+    title: "Save hours",
+    desc: "No more manual documentation or schema archaeology.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Stay compliant",
+    desc: "Automated governance insights and PII detection.",
+  },
+  {
+    icon: Users,
+    title: "Empower teams",
+    desc: "Anyone can understand and explore your data.",
+  },
+  {
+    icon: Zap,
+    title: "Ship faster",
+    desc: "Under 30 seconds from connection to full intelligence.",
+  },
 ];
 
 const BenefitsSection = () => (
@@ -29,11 +46,13 @@ const BenefitsSection = () => (
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: i * 0.08 }}
-            className="text-center"
+            className="text-center p-6 rounded-2xl border border-border/50 bg-card/50 hover:border-primary/20 transition-colors"
           >
-            <b.icon className="w-5 h-5 text-primary mx-auto mb-3" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <b.icon className="w-5 h-5 text-primary" />
+            </div>
             <h3 className="font-semibold text-sm mb-1">{b.title}</h3>
-            <p className="text-xs text-muted-foreground">{b.desc}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{b.desc}</p>
           </motion.div>
         ))}
       </div>

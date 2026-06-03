@@ -3,18 +3,28 @@
 import { Database } from "lucide-react";
 import Link from "next/link";
 
-const links = {
-  Product: ["Features", "Pricing", "Integrations"],
-  Resources: ["Docs", "API", "Blog"],
-  Company: ["Security", "Privacy", "Contact"],
+const footerLinks = {
+  Product: [
+    { label: "Features", href: "#features" },
+    { label: "Showcase", href: "#showcase" },
+    { label: "Integrations", href: "#integrations" },
+  ],
+  Platform: [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Connect DB", href: "/connect" },
+    { label: "How It Works", href: "#how-it-works" },
+  ],
+  Resources: [
+    { label: "MCP Setup", href: "#integrations" },
+    { label: "Quality Audit", href: "/dashboard/quality" },
+    { label: "Data Lineage", href: "/dashboard/lineage" },
+  ],
 };
 
 const LandingFooter = () => (
   <footer className="border-t border-border py-16">
     <div className="container mx-auto px-6">
       <div className="grid md:grid-cols-4 gap-8">
-        
-        {/* Logo + Description */}
         <div>
           <Link
             href="/"
@@ -23,27 +33,24 @@ const LandingFooter = () => (
             <Database className="w-4 h-4 text-primary" />
             DataLens AI
           </Link>
-
           <p className="text-xs text-muted-foreground leading-relaxed">
-            AI-powered data documentation for modern teams.
+            AI-powered data documentation, quality audits, and schema intelligence for modern teams.
           </p>
         </div>
 
-        {/* Footer Links */}
-        {Object.entries(links).map(([cat, items]) => (
+        {Object.entries(footerLinks).map(([cat, items]) => (
           <div key={cat}>
             <h4 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
               {cat}
             </h4>
-
             <ul className="space-y-2">
               {items.map((l) => (
-                <li key={l}>
+                <li key={l.label}>
                   <a
-                    href="#"
+                    href={l.href}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {l}
+                    {l.label}
                   </a>
                 </li>
               ))}
@@ -52,7 +59,6 @@ const LandingFooter = () => (
         ))}
       </div>
 
-      {/* Bottom Bar */}
       <div className="mt-12 pt-8 border-t border-border text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} DataLens AI
       </div>

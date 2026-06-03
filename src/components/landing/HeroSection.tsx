@@ -40,22 +40,23 @@ const HeroSection = () => {
             data <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">instantly.</span>
           </h1>
 
-          <p className="text-lg text-zinc-400 max-w-lg mx-auto mb-12 leading-relaxed">
-            AI-powered documentation, governance, and natural language search for enterprise databases.
+          <p className="text-lg text-zinc-400 max-w-xl mx-auto mb-12 leading-relaxed">
+            Auto-document schemas, audit data quality, chat with AI, export reports,
+            and integrate with Cursor — all from one intelligent data dictionary.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/dashboard">
+            <Link href="/connect">
               <Button size="lg" className="h-14 px-10 rounded-full font-bold text-base shadow-[0_0_20px_rgba(var(--primary),0.3)]">
-                Start Free
+                Connect Database
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
-            <Link href="/dashboard">
+            <a href="#showcase">
               <Button size="lg" variant="ghost" className="h-14 px-10 rounded-full font-bold text-base text-white hover:bg-white/5">
-                View Demo
+                See Features
               </Button>
-            </Link>
+            </a>
           </div>
         </motion.div>
 
@@ -76,10 +77,10 @@ const HeroSection = () => {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {[
-                { label: "Tables Indexed", value: "247" },
-                { label: "Critical Assets", value: "38" },
-                { label: "Auto-Doc Score", value: "94%" },
-                { label: "Last Sync", value: "2m ago" },
+                { label: "Health Grade", value: "B+" },
+                { label: "AI Enriched", value: "100%" },
+                { label: "Export Formats", value: "4" },
+                { label: "Time to Insight", value: "<30s" },
               ].map((s) => (
                 <div key={s.label} className="text-left border-l border-white/10 pl-6">
                   <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-2">{s.label}</p>

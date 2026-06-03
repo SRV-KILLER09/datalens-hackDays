@@ -3,7 +3,7 @@
 import { db } from "../db";
 import { connections } from "../db/schema";
 import { revalidatePath } from "next/cache";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, count, ne, inArray } from "drizzle-orm";
 
 // --- Lazy Loader Helpers (Prevents Client-Side Bundle Errors) ---
 const getPostgres = async () => (await import('postgres')).default;
@@ -329,6 +329,43 @@ export const getUserConnections = async (userId: string) => {
   try {
     const userConns = await db.select().from(connections).where(eq(connections.userId, userId));
     return { success: true, data: userConns };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+};
+
+export const getDashboardStats = async (userId: string) => {
+  try {
+    const userConns = await db.select().from(connections).where(eq(connections.userId, userId));
+    const connIds = userConns.map((c) => c.id);
+
+    let documentedTables = 0;
+    if (connIds.length > 0) {
+      const { schemaKnowledge } = await import("../db/schema");
+      const [result] = await db
+        .select({ value: count() })
+        .from(schemaKnowledge)
+        .where(
+          and(
+            inArray(schemaKnowledge.connectionId, connIds),
+            ne(schemaKnowledge.entityName, "__business_report__")
+          )
+        );
+      documentedTables = result?.value ?? 0;
+    }
+
+    const providers = [...new Set(userConns.map((c) => c.provider))];
+
+    return {
+      success: true,
+      data: {
+        connections: userConns,
+        connectionCount: userConns.length,
+        documentedTables,
+        providerCount: providers.length,
+        providers,
+      },
+    };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

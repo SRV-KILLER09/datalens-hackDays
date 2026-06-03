@@ -48,6 +48,8 @@ const LandingNavbar = () => {
         </Link>
         <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8 text-sm text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition-colors cursor-pointer">Features</a>
+          <a href="#showcase" className="hover:text-foreground transition-colors cursor-pointer">Showcase</a>
+          <a href="#integrations" className="hover:text-foreground transition-colors cursor-pointer">Integrations</a>
           <a href="#how-it-works" className="hover:text-foreground transition-colors cursor-pointer">How It Works</a>
         </div>
 
@@ -109,6 +111,8 @@ const LandingNavbar = () => {
       {open && (
         <div className="md:hidden border-t border-border bg-background p-6 space-y-4">
           <a href="#features" className="block text-sm text-muted-foreground">Features</a>
+          <a href="#showcase" className="block text-sm text-muted-foreground">Showcase</a>
+          <a href="#integrations" className="block text-sm text-muted-foreground">Integrations</a>
           <a href="#how-it-works" className="block text-sm text-muted-foreground">How It Works</a>
 
           {!session ? (
