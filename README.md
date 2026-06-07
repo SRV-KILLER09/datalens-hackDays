@@ -184,18 +184,21 @@ See **[vscode/README.md](vscode/README.md)** for Cursor, VS Code, and Antigravit
 
 ---
 
-# 🤖 Interactive AI Agent CLI
+# 🤖 AI API Route Generator Agent (CLI & Web Sandbox)
 
-DataLens AI features an interactive, session-based terminal AI Agent that can explore your database schema, check data quality, and **automatically write Next.js Route Handlers** (`src/app/api/custom/[slug]/route.ts`) to expose custom data endpoints on the fly.
+DataLens AI features an interactive, session-based AI Agent that can explore your database schema, check data quality, and **automatically write Next.js Route Handlers** (`src/app/api/custom/[slug]/route.ts`) to expose custom data endpoints on the fly. 
+
+This agent is available via **both** the CLI terminal and the Web Sandbox console.
 
 ### ✨ Features
-*   **Persistent Session Chat:** Remembers your schema structure, tables, and past commands during the conversation.
-*   **Database Inspection:** Uses tools to scan columns, types, and keys directly.
-*   **Dynamic Endpoint Generation:** Code-generates clean Next.js GET/POST route handlers that compile and hot-reload in Next.js instantly.
-*   **Endpoint Management:** List and delete dynamically generated endpoints directly using CLI commands.
-*   **Retro Aesthetics:** Custom dot-matrix ASCII logo and an animated terminal spinner.
+*   **Web Agent Console Tab:** Dedicated **API Agent (Beta)** workspace in the database detail dashboard containing real-time code output and schema context generation.
+*   **Interactive Testing Playground:** Execute, query, and test generated custom APIs in real-time with custom parameter inputs directly inside the browser.
+*   **Persistent Chat History:** Seamlessly stores agent conversation records in local storage (`localStorage`) keyed by `connectionId`. Switch tabs or reload without losing progress, and clear history instantly with the header Trash control.
+*   **Safe Parametrized Queries:** Upgraded backend architecture to support parametrized SQL queries (e.g. `SELECT * FROM table WHERE col = $1` with parameter binding variables) in generated API routes to protect against SQL injection.
+*   **Active APIs Management:** Expand to view raw generated TypeScript code, test endpoints with custom request parameters, or delete generated routes with one click.
+*   **CLI Agent Tool:** Retro ASCII interactive terminal console with shell command support.
 
-### ⚙️ Setup & Usage
+### 💻 CLI Agent Setup & Usage
 1. Add your target database connection ID to your `.env` file (you can find these in the `connections` table):
    ```env
    ACTIVE_CONNECTION_ID="your_connection_id"
