@@ -178,12 +178,23 @@ Return Markdown only.`
             }
         }
 
+        let connectionString = "";
         try {
-            const sessionUser = await db.select({ userId: connections.userId }).from(connections).where(eq(connections.id, connectionId)).limit(1);
-            const userId = sessionUser[0]?.userId || "";
+            const connObj = await db.select({ userId: connections.userId, tableUri: connections.tableUri }).from(connections).where(eq(connections.id, connectionId)).limit(1);
+            const userId = connObj[0]?.userId || "";
+            connectionString = connObj[0]?.tableUri || "";
             await getOrGenerateBusinessReport(connectionId, userId);
         } catch (e) {
             console.error(e);
+        }
+
+        if (connectionString) {
+            try {
+                console.log(`[RAG Backend] Automatically indexing database in Qdrant for connection: ${connectionId}`);
+                await indexRemoteDatabase(connectionId, connectionString);
+            } catch (err) {
+                console.error("[RAG Backend] Automatic Qdrant indexing failed:", err);
+            }
         }
 
         return { success: true, message: `Successfully generated documentation for ${dbEntities.length} tables.` };
