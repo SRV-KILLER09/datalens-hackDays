@@ -144,3 +144,36 @@
     box-shadow: 0 0 60px -12px color-mix(in srgb, var(--color-primary), transparent 85%);
   }
 }
+
+/* Custom Playground Animations */
+@keyframes edge-pulse-travel {
+  0% {
+    offset-distance: 0%;
+  }
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+.playground-pulse-ball {
+  animation: edge-pulse-travel 1.4s linear infinite;
+  offset-rotate: auto;
+}
+
+@keyframes node-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20%, 60% { transform: translate(-1.5px, 1px); }
+  40%, 80% { transform: translate(1.5px, -1px); }
+}
+
+.shake-warning {
+  animation: node-shake 0.3s ease-in-out infinite;
+  border-color: var(--color-destructive) !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3) !important;
+}
+
+.warning-edge-glowing {
+  stroke: var(--color-destructive) !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));
+}

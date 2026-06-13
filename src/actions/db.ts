@@ -135,30 +135,130 @@ export async function getDatabaseMetadata(connectionString: string) {
 export async function getDatabaseRelations(uri: string) {
   try {
     const metadata = await getDatabaseMetadata(uri);
-    if (!metadata.success || !metadata.data) return metadata;
+    if (!metadata.success || !metadata.data) {
+      return { success: false, error: metadata.error || "Failed to load database schema metadata." };
+    }
 
     const relQuery = `
       SELECT
           tc.table_name AS source_table, 
           kcu.column_name AS source_column, 
           ccu.table_name AS target_table,
-          ccu.column_name AS target_column
+          ccu.column_name AS target_column,
+          EXISTS (
+              SELECT 1 
+              FROM information_schema.table_constraints AS tc2
+              JOIN information_schema.key_column_usage AS kcu2
+                ON tc2.constraint_name = kcu2.constraint_name AND tc2.table_schema = kcu2.table_schema
+              WHERE tc2.table_name = tc.table_name 
+                AND kcu2.column_name = kcu.column_name 
+                AND tc2.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+          ) AS is_unique
       FROM 
           information_schema.table_constraints AS tc 
           JOIN information_schema.key_column_usage AS kcu
-            ON tc.constraint_name = kcu.constraint_name
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
           JOIN information_schema.constraint_column_usage AS ccu
-            ON ccu.constraint_name = tc.constraint_name
+            ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = ccu.table_schema
       WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public';
     `;
 
     const relations = await executeQuery(uri, relQuery);
 
+    const schema = metadata.data.schema as any[];
+    const tableCols: Record<string, string[]> = {};
+    const tableColObjects: Record<string, any[]> = {};
+    schema.forEach((col: any) => {
+      const t = col.table_name || col.TABLE_NAME;
+      const c = col.column_name || col.COLUMN_NAME;
+      if (!tableCols[t]) {
+        tableCols[t] = [];
+        tableColObjects[t] = [];
+      }
+      tableCols[t].push(c);
+      tableColObjects[t].push(col);
+    });
+
+    const activeTables = Object.keys(tableCols);
+    const polyRelations: any[] = [];
+    
+    const isNameMatch = (tableName: string, typeValue: string) => {
+      const t = tableName.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const v = typeValue.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return t === v || t === v + "s" || t === v + "es" || v === t + "s" || v === t + "es" || t.includes(v) || v.includes(t);
+    };
+
+    for (const [tableName, cols] of Object.entries(tableCols)) {
+      const typeCols = cols.filter(c => c.endsWith('_type'));
+      for (const typeCol of typeCols) {
+        const prefix = typeCol.substring(0, typeCol.length - 5);
+        const idCol = `${prefix}_id`;
+        if (cols.includes(idCol)) {
+          try {
+            const distinctValsQuery = `
+              SELECT DISTINCT "${typeCol}" AS val 
+              FROM "${tableName}" 
+              WHERE "${typeCol}" IS NOT NULL AND "${typeCol}" != '';
+            `;
+            const distinctResult = await executeQuery(uri, distinctValsQuery);
+            const typeValues: string[] = distinctResult.map((r: any) => r.val || r.VAL || "");
+            const matchedTargets = new Set<string>();
+
+            for (const val of typeValues) {
+              if (!val) continue;
+              const matchTable = activeTables.find(t => isNameMatch(t, val));
+              if (matchTable) {
+                matchedTargets.add(matchTable);
+              }
+            }
+
+            for (const targetTable of matchedTargets) {
+              const targetCols = tableColObjects[targetTable] || [];
+              const targetPkCol = targetCols.find(c => c.is_primary_key || c.is_primary_key === 'true')?.column_name || 'id';
+
+              polyRelations.push({
+                source_table: tableName,
+                source_column: idCol,
+                target_table: targetTable,
+                target_column: targetPkCol,
+                relation_type: "polymorphic"
+              });
+            }
+
+            if (matchedTargets.size === 0) {
+              const fallbackTable = activeTables.find(t => isNameMatch(t, prefix));
+              if (fallbackTable) {
+                const targetCols = tableColObjects[fallbackTable] || [];
+                const targetPkCol = targetCols.find(c => c.is_primary_key || c.is_primary_key === 'true')?.column_name || 'id';
+                polyRelations.push({
+                  source_table: tableName,
+                  source_column: idCol,
+                  target_table: fallbackTable,
+                  target_column: targetPkCol,
+                  relation_type: "polymorphic"
+                });
+              }
+            }
+          } catch (err) {
+            console.error(`Error detecting polymorphic target values for ${tableName}.${typeCol}:`, err);
+          }
+        }
+      }
+    }
+
+    const finalRelations = relations.map((r: any) => ({
+      source_table: r.source_table,
+      source_column: r.source_column,
+      target_table: r.target_table,
+      target_column: r.target_column,
+      relation_type: r.is_unique === true || r.is_unique === 'true' || String(r.is_unique) === 'true' ? 'one_to_one' : 'one_to_many'
+    })).concat(polyRelations);
+
     return { 
       success: true, 
       data: { 
         schema: metadata.data.schema, 
-        relations: relations 
+        relations: finalRelations 
       } 
     };
   } catch (error: any) {

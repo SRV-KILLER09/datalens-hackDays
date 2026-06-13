@@ -73,6 +73,16 @@ function ColumnEdge({
     targetPosition,
   });
 
+  const isPoly = data?.relation_type === "polymorphic";
+  const isOneToOne = data?.relation_type === "one_to_one";
+  
+  let labelClass = "border-primary/30 text-primary";
+  if (isPoly) {
+    labelClass = "border-purple-500/30 text-purple-500 dark:text-purple-400";
+  } else if (isOneToOne) {
+    labelClass = "border-sky-500/30 text-sky-500 dark:text-sky-400";
+  }
+
   return (
     <>
       <path id={id} className="react-flow__edge-path" d={edgePath} style={style} markerEnd={markerEnd} />
@@ -84,7 +94,7 @@ function ColumnEdge({
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: "all",
             }}
-            className="px-1.5 py-0.5 rounded text-[8px] font-mono bg-card border border-primary/30 text-primary shadow-sm"
+            className={`px-1.5 py-0.5 rounded text-[8px] font-mono bg-card border shadow-sm ${labelClass}`}
           >
             {data.label}
           </div>
@@ -110,11 +120,11 @@ const TableNode = ({ data }: any) => {
           <span className="text-[11px] font-bold uppercase tracking-widest">{data.label}</span>
         </div>
         <div className="p-2 space-y-0.5 bg-background/50 max-h-[280px] overflow-y-auto">
-          {data.columns.map((col: { name: string; isFk?: boolean; isPk?: boolean }) => {
+          {data.columns.map((col: { name: string; isFk?: boolean; isPk?: boolean; isPoly?: boolean }) => {
             const colId = `${data.label}.${col.name}`;
             const isHighlighted = highlighted?.has(colId);
             const isSelected = selectedColumn === colId;
-            const isFk = col.isFk || col.name.toLowerCase().includes("id");
+            const isFk = col.isFk || col.name.toLowerCase().includes("id") || col.isPoly;
 
             return (
               <div key={col.name} className="relative">
@@ -150,7 +160,8 @@ const TableNode = ({ data }: any) => {
                   <span className={isFk ? "text-primary font-bold" : ""}>{col.name}</span>
                   <span className="flex gap-0.5">
                     {col.isPk && <span className="text-[7px] bg-primary/10 text-primary px-1 rounded font-bold">PK</span>}
-                    {col.isFk && <span className="text-[7px] bg-blue-500/10 text-blue-500 px-1 rounded font-bold">FK</span>}
+                    {col.isFk && !col.isPoly && <span className="text-[7px] bg-blue-500/10 text-blue-500 px-1 rounded font-bold">FK</span>}
+                    {col.isPoly && <span className="text-[7px] bg-purple-500/10 text-purple-500 px-1 rounded font-bold">POLY</span>}
                   </span>
                 </button>
               </div>
@@ -174,6 +185,7 @@ type Relation = {
   source_column: string;
   target_table: string;
   target_column: string;
+  relation_type?: string;
 };
 
 export default function LineageDynamicPage({ params }: { params: Promise<{ connectionId: string }> }) {
@@ -265,43 +277,82 @@ export default function LineageDynamicPage({ params }: { params: Promise<{ conne
     let initialEdges: Edge[];
 
     if (mode === "column") {
-      initialEdges = rels.map((rel, i) => ({
-        id: `e-${i}`,
-        source: rel.source_table,
-        target: rel.target_table,
-        sourceHandle: `${rel.source_table}.${rel.source_column}-source`,
-        targetHandle: `${rel.target_table}.${rel.target_column}-target`,
-        type: "column",
-        animated: true,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "hsl(var(--primary))" },
-        style: {
-          stroke: highlighted.size > 0 &&
-            (highlighted.has(`${rel.source_table}.${rel.source_column}`) ||
-              highlighted.has(`${rel.target_table}.${rel.target_column}`))
-            ? "hsl(var(--primary))"
-            : "hsl(var(--muted-foreground) / 0.4)",
-          strokeWidth: highlighted.size > 0 &&
-            (highlighted.has(`${rel.source_table}.${rel.source_column}`) ||
-              highlighted.has(`${rel.target_table}.${rel.target_column}`))
-            ? 2.5
-            : 1.5,
-        },
-        data: { label: `${rel.source_column} → ${rel.target_column}` },
-      }));
+      initialEdges = rels.map((rel, i) => {
+        const isPoly = rel.relation_type === "polymorphic";
+        const isOneToOne = rel.relation_type === "one_to_one";
+        const isHighlighted = highlighted.size > 0 &&
+          (highlighted.has(`${rel.source_table}.${rel.source_column}`) ||
+            highlighted.has(`${rel.target_table}.${rel.target_column}`));
+
+        let strokeColor = "hsl(var(--muted-foreground) / 0.4)";
+        let strokeDasharray = undefined;
+        let strokeWidth = isHighlighted ? 2.5 : 1.5;
+
+        if (isPoly) {
+          strokeColor = isHighlighted ? "rgb(168, 85, 247)" : "rgba(168, 85, 247, 0.4)";
+          strokeDasharray = "5 5";
+        } else if (isOneToOne) {
+          strokeColor = isHighlighted ? "rgb(56, 189, 248)" : "rgba(56, 189, 248, 0.4)";
+        } else {
+          strokeColor = isHighlighted ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.4)";
+        }
+
+        let typeLabel = "1:N";
+        if (isPoly) typeLabel = "Poly";
+        if (isOneToOne) typeLabel = "1:1";
+
+        return {
+          id: `e-${i}`,
+          source: rel.source_table,
+          target: rel.target_table,
+          sourceHandle: `${rel.source_table}.${rel.source_column}-source`,
+          targetHandle: `${rel.target_table}.${rel.target_column}-target`,
+          type: "column",
+          animated: true,
+          markerEnd: { 
+            type: MarkerType.ArrowClosed, 
+            width: 16, 
+            height: 16, 
+            color: isPoly ? "rgb(168, 85, 247)" : isOneToOne ? "rgb(56, 189, 248)" : "hsl(var(--primary))" 
+          },
+          style: {
+            stroke: strokeColor,
+            strokeDasharray,
+            strokeWidth,
+          },
+          data: { 
+            label: `${rel.source_column} → ${rel.target_column} [${typeLabel}]`,
+            relation_type: rel.relation_type
+          },
+        };
+      });
     } else {
       const seen = new Set<string>();
       initialEdges = rels.reduce<Edge[]>((acc, rel, i) => {
         const key = `${rel.source_table}->${rel.target_table}`;
         if (seen.has(key)) return acc;
         seen.add(key);
+
+        const isPoly = rel.relation_type === "polymorphic";
+        const isOneToOne = rel.relation_type === "one_to_one";
+
         acc.push({
           id: `e-${i}`,
           source: rel.source_table,
           target: rel.target_table,
           animated: true,
           type: ConnectionLineType.SmoothStep,
-          markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: "hsl(var(--primary))" },
-          style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
+          markerEnd: { 
+            type: MarkerType.ArrowClosed, 
+            width: 20, 
+            height: 20, 
+            color: isPoly ? "rgb(168, 85, 247)" : isOneToOne ? "rgb(56, 189, 248)" : "hsl(var(--primary))" 
+          },
+          style: { 
+            stroke: isPoly ? "rgb(168, 85, 247)" : isOneToOne ? "rgb(56, 189, 248)" : "hsl(var(--primary))", 
+            strokeWidth: 2,
+            strokeDasharray: isPoly ? "5 5" : undefined
+          },
         });
         return acc;
       }, []);
@@ -331,19 +382,24 @@ export default function LineageDynamicPage({ params }: { params: Promise<{ conne
       if (res.success && res.data) {
         const data = res.data as any;
         const fkColumns = new Set<string>();
+        const polyColumns = new Set<string>();
         const rels: Relation[] = data.relations || [];
         rels.forEach((r: Relation) => {
           fkColumns.add(`${r.source_table}.${r.source_column}`);
+          if (r.relation_type === "polymorphic") {
+            polyColumns.add(`${r.source_table}.${r.source_column}`);
+          }
         });
 
-        const newTableGroups: Record<string, { name: string; isFk: boolean; isPk: boolean }[]> = {};
+        const newTableGroups: Record<string, { name: string; isFk: boolean; isPk: boolean; isPoly?: boolean }[]> = {};
         data.schema.forEach((curr: any) => {
           const tableName = curr.table_name || curr.TABLE_NAME;
           const columnName = curr.column_name || curr.COLUMN_NAME;
           const isPk = curr.is_primary_key === true || curr.is_primary_key === "true";
-          const isFk = fkColumns.has(`${tableName}.${columnName}`) || curr.is_foreign_key;
+          const isPoly = polyColumns.has(`${tableName}.${columnName}`);
+          const isFk = fkColumns.has(`${tableName}.${columnName}`) || curr.is_foreign_key || isPoly;
           if (!newTableGroups[tableName]) newTableGroups[tableName] = [];
-          newTableGroups[tableName].push({ name: columnName, isFk, isPk });
+          newTableGroups[tableName].push({ name: columnName, isFk, isPk, isPoly });
         });
 
         setRelations(rels);
@@ -396,6 +452,21 @@ export default function LineageDynamicPage({ params }: { params: Promise<{ conne
                 ? "Column-level FK mapping — click a column to trace upstream/downstream impact."
                 : "Table-level ER diagram showing how tables connect."}
             </p>
+            <div className="flex flex-wrap items-center gap-4 mt-2 text-xs">
+              <span className="text-muted-foreground font-medium">Relationship Legend:</span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-1.5 bg-primary rounded" />
+                <span className="text-muted-foreground font-mono">One-to-Many (1:N)</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-1.5 bg-sky-500 rounded" />
+                <span className="text-muted-foreground font-mono">One-to-One (1:1)</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-1.5 border-b-2 border-dashed border-purple-500" />
+                <span className="text-muted-foreground font-mono text-purple-600 dark:text-purple-400">Polymorphic</span>
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">

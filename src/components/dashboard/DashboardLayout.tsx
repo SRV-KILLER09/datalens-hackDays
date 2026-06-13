@@ -19,6 +19,7 @@ import {
   LogOut,
   Sparkles,
   ShieldAlert,
+  Gamepad2,
 } from "lucide-react";
 import { ThemeToggle } from "../theme-toggle";
 import { useState, useEffect } from "react";
@@ -61,6 +62,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     { label: "Data Quality", icon: BarChart3, path: lastConnId ? `/dashboard/quality/${lastConnId}` : "/dashboard/quality", base: "/dashboard/quality" },
     // { label: "Compliance", icon: ShieldCheck, path: "/dashboard/compliance", base: "/dashboard/compliance" },
     { label: "Lineage", icon: GitBranch, path: lastConnId ? `/dashboard/lineage/${lastConnId}` : "/dashboard/lineage", base: "/dashboard/lineage" },
+    { label: "Interactive Playground", icon: Gamepad2, path: lastConnId ? `/dashboard/playground/${lastConnId}` : "/dashboard/playground", base: "/dashboard/playground" },
     { label: "Impact Simulator", icon: ShieldAlert, path: lastConnId ? `/dashboard/impact/${lastConnId}` : "/dashboard/impact", base: "/dashboard/impact" },
     { label: "Text-to-SQL", icon: Sparkles, path: lastConnId ? `/dashboard/studio/${lastConnId}` : "/dashboard/studio", base: "/dashboard/studio" },
     { label: "Query Runner", icon: CodeXml, path: "/dashboard/query", base: "/dashboard/query" }
