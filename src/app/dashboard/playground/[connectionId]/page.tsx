@@ -99,14 +99,17 @@ function PlaygroundEdge({
   const isPoly = data?.relation_type === "polymorphic";
   const isOneToOne = data?.relation_type === "one_to_one";
   const isWarning = data?.impactActive;
+  const isNewLink = data?.isNew;
 
   let strokeColor = isWarning 
     ? "rgb(239, 68, 68)" 
-    : isPoly 
-      ? "rgb(168, 85, 247)" 
-      : isOneToOne 
-        ? "rgb(56, 189, 248)" 
-        : "hsl(var(--primary))";
+    : isNewLink
+      ? "rgb(16, 185, 129)"
+      : isPoly 
+        ? "rgb(168, 85, 247)" 
+        : isOneToOne 
+          ? "rgb(56, 189, 248)" 
+          : "hsl(var(--primary))";
 
   let strokeDasharray = isPoly ? "5 5" : undefined;
   let strokeWidth = isWarning ? 3 : 2;
@@ -133,6 +136,14 @@ function PlaygroundEdge({
           style={{ offsetPath: `path('${edgePath}')` }}
         />
       )}
+      {isNewLink && (
+        <circle
+          r="5.5"
+          fill="rgb(16, 185, 129)"
+          className="playground-pulse-ball"
+          style={{ offsetPath: `path('${edgePath}')` }}
+        />
+      )}
       {data?.label && (
         <EdgeLabelRenderer>
           <div
@@ -144,11 +155,13 @@ function PlaygroundEdge({
             className={`px-1.5 py-0.5 rounded text-[8px] font-mono bg-card border shadow-sm ${
               isWarning
                 ? "border-red-500/30 text-red-500 font-bold"
-                : isPoly
-                  ? "border-purple-500/30 text-purple-500"
-                  : isOneToOne
-                    ? "border-sky-500/30 text-sky-500"
-                    : "border-primary/30 text-primary"
+                : isNewLink
+                  ? "border-emerald-500/30 text-emerald-500 font-bold"
+                  : isPoly
+                    ? "border-purple-500/30 text-purple-500"
+                    : isOneToOne
+                      ? "border-sky-500/30 text-sky-500"
+                      : "border-primary/30 text-primary"
             }`}
           >
             {data.label}
@@ -250,6 +263,15 @@ export default function PlaygroundDynamicPage({ params }: { params: Promise<{ co
   const [deletingTable, setDeletingTable] = useState<string | null>(null);
   const [simulationResult, setSimulationResult] = useState<ImpactSimulationResult | null>(null);
   const [simulating, setSimulating] = useState(false);
+
+  // New connection simulation states
+  const [pendingConnection, setPendingConnection] = useState<Edge | null>(null);
+  const [linkSimulationResult, setLinkSimulationResult] = useState<{
+    riskLevel: "LOW" | "HIGH";
+    summary: string;
+    recommendation: string;
+    lineageText: string;
+  } | null>(null);
 
   // Load connections
   useEffect(() => {
@@ -439,6 +461,92 @@ export default function PlaygroundDynamicPage({ params }: { params: Promise<{ co
     setSimulationResult(null);
   };
 
+  // DFS cycle checking helper
+  const checkCycle = useCallback((startNode: string, targetNode: string, currentEdges: Edge[]): boolean => {
+    const adjList: Record<string, string[]> = {};
+    currentEdges.forEach((edge) => {
+      if (!adjList[edge.source]) adjList[edge.source] = [];
+      adjList[edge.source].push(edge.target);
+    });
+
+    const visited = new Set<string>();
+    const dfs = (curr: string): boolean => {
+      if (curr === startNode) return true;
+      if (visited.has(curr)) return false;
+      visited.add(curr);
+
+      const neighbors = adjList[curr] || [];
+      for (const neighbor of neighbors) {
+        if (dfs(neighbor)) return true;
+      }
+      return false;
+    };
+
+    return dfs(targetNode);
+  }, []);
+
+  // Handle visual drawing connections
+  const onConnect = useCallback((connection: any) => {
+    const { source, target, sourceHandle, targetHandle } = connection;
+    if (!source || !target) return;
+    if (source === target) return;
+
+    // Check duplicate
+    const duplicate = edges.some(e => e.source === source && e.target === target);
+    if (duplicate) return;
+
+    const createsCycle = checkCycle(source, target, edges);
+
+    const cleanSourceField = sourceHandle?.replace(`${source}.`, '')?.replace('-source', '') || 'id';
+    const cleanTargetField = targetHandle?.replace(`${target}.`, '')?.replace('-target', '') || 'id';
+
+    const newEdgeId = `e-user-${Date.now()}`;
+    const newEdge: Edge = {
+      id: newEdgeId,
+      source,
+      target,
+      sourceHandle,
+      targetHandle,
+      type: "playgroundEdge",
+      animated: true,
+      data: {
+        label: `${cleanSourceField} → ${cleanTargetField} [New]`,
+        relation_type: "one_to_many",
+        isNew: true,
+      },
+    };
+
+    setPendingConnection(newEdge);
+
+    if (createsCycle) {
+      setLinkSimulationResult({
+        riskLevel: "HIGH",
+        summary: `⚠️ Circular dependency loop detected between '${source}' and '${target}'!`,
+        recommendation: "Avoid circular constraints: circular paths make cascade updates and insertions complex, requiring nullable foreign keys or temporary constraint disablement.",
+        lineageText: `Circular path found: '${target}' is already upstream of '${source}'. Connecting '${source}' back to '${target}' creates a bi-directional cycle.`,
+      });
+    } else {
+      setLinkSimulationResult({
+        riskLevel: "LOW",
+        summary: `New join path established: '${source}' ➔ '${target}'`,
+        recommendation: "Check field data types (e.g. integer vs text). Ensure target column has index optimized for join speeds.",
+        lineageText: `Data path established: '${target}' is now downstream of '${source}'. Integrates successfully into custom query generator.`,
+      });
+    }
+  }, [edges, checkCycle]);
+
+  const confirmLink = () => {
+    if (!pendingConnection) return;
+    setEdges((eds) => eds.concat(pendingConnection));
+    setPendingConnection(null);
+    setLinkSimulationResult(null);
+  };
+
+  const cancelLink = () => {
+    setPendingConnection(null);
+    setLinkSimulationResult(null);
+  };
+
   // Reset Model back to original connection state
   const resetPlayground = () => {
     const initialActive = new Set(dbTables.slice(0, 5).map(t => t.name));
@@ -538,6 +646,8 @@ export default function PlaygroundDynamicPage({ params }: { params: Promise<{ co
               edgeTypes={edgeTypes}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              connectionLineType={ConnectionLineType.SmoothStep}
               proOptions={proOptions}
               fitView
             >
@@ -674,6 +784,66 @@ export default function PlaygroundDynamicPage({ params }: { params: Promise<{ co
               </Button>
               <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={simulating}>
                 Confirm Deletion (Animate Out)
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* New Connection Impact Simulation dialog */}
+        <Dialog open={pendingConnection !== null} onOpenChange={(open) => { if (!open) cancelLink(); }}>
+          <DialogContent className="max-w-2xl bg-card border-primary/20">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-primary font-bold">
+                <PlusCircle className="w-5 h-5 text-primary" />
+                Connection Impact Tracing
+              </DialogTitle>
+              <DialogDescription className="text-xs font-mono">
+                Simulating visual join path from <span className="text-primary font-bold">{pendingConnection?.source}</span> to <span className="text-primary font-bold">{pendingConnection?.target}</span>
+              </DialogDescription>
+            </DialogHeader>
+
+            {linkSimulationResult && (
+              <div className="space-y-4 py-2">
+                <div className="flex items-start justify-between gap-4 p-3.5 rounded-xl border bg-muted/40">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Join Path Status</p>
+                    <p className="text-xs font-medium font-mono">{linkSimulationResult.summary}</p>
+                  </div>
+                  <Badge className={`${RISK_STYLES[linkSimulationResult.riskLevel]} border text-[10px] font-bold shrink-0`}>
+                    {linkSimulationResult.riskLevel} RISK
+                  </Badge>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-3 text-xs">
+                  {/* Lineage details */}
+                  <Card className="p-3 bg-background/50 space-y-2">
+                    <h4 className="font-bold flex items-center gap-1.5 text-primary">
+                      <GitBranch className="w-3.5 h-3.5" /> Lineage Path Impact
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed leading-relaxed">
+                      {linkSimulationResult.lineageText}
+                    </p>
+                  </Card>
+
+                  {/* Recommendations */}
+                  <Card className="p-3 bg-background/50 space-y-2 text-xs">
+                    <h4 className="font-bold flex items-center gap-1.5 text-amber-500">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Schema Engineering Advice
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed leading-relaxed">
+                      {linkSimulationResult.recommendation}
+                    </p>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0 border-t pt-4">
+              <Button variant="outline" size="sm" onClick={cancelLink}>
+                Discard Link
+              </Button>
+              <Button variant="default" size="sm" onClick={confirmLink}>
+                Confirm & Draw Connection (Green Pulse)
               </Button>
             </DialogFooter>
           </DialogContent>
