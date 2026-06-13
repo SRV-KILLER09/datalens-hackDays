@@ -717,3 +717,65 @@ export async function inspectConnectionSchema(
     return { success: false, error: error.message };
   }
 }
+
+export async function getSampleRowsAction(connectionId: string, tableName: string, userId?: string) {
+  const FALLBACK_URI = process.env.NEXT_PUBLIC_FALLBACK_URI!;
+  let uri = "";
+  if (connectionId === "demo-neon-db" || connectionId === "demo-mode" || !userId) {
+    uri = FALLBACK_URI;
+  } else {
+    uri = (await getConnectionStringById(connectionId, userId)) || FALLBACK_URI;
+  }
+  if (!uri) return { success: false, error: "Connection URI not found." };
+
+  if (uri.startsWith('postgres')) {
+    const postgres = await getPostgres();
+    const sqlConnection = postgres(uri, { max: 1 });
+    try {
+      const data = await sqlConnection.unsafe(`SELECT * FROM "${tableName}" LIMIT 2`);
+      return { success: true, data: JSON.parse(JSON.stringify(data)) };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    } finally {
+      await sqlConnection.end();
+    }
+  } else if (uri.startsWith('mysql')) {
+    const mysql = await getMySQL();
+    let connection;
+    try {
+      connection = await mysql.createConnection(uri);
+      const [rows]: any = await connection.execute(`SELECT * FROM \`${tableName}\` LIMIT 2`);
+      return { success: true, data: rows };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    } finally {
+      if (connection) await connection.end();
+    }
+  } else if (uri.startsWith('snowflake')) {
+    const snowflake = await getSnowflake();
+    try {
+      const url = new URL(uri);
+      const connection = snowflake.createConnection({
+        account: url.hostname,
+        username: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
+        database: url.pathname.split('/')[1],
+        schema: url.pathname.split('/')[2] || 'PUBLIC',
+        warehouse: url.searchParams.get('warehouse') || undefined
+      });
+
+      const connect = () => new Promise((res, rej) => connection.connect((err, conn) => err ? rej(err) : res(conn)));
+      const execute = (sqlText: string) => new Promise((res, rej) => {
+        connection.execute({ sqlText, complete: (err, stmt, rows) => err ? rej(err) : res(rows) });
+      });
+
+      await connect();
+      const rows: any = await execute(`SELECT * FROM "${tableName}" LIMIT 2`);
+      return { success: true, data: rows };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: "Unsupported database provider." };
+}
+

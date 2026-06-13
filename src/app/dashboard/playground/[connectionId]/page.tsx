@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, use } from "react";
+import { useState, useEffect, useCallback, useMemo, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ReactFlow,
@@ -22,7 +22,7 @@ import dagre from "dagre";
 import { motion, AnimatePresence } from "framer-motion";
 
 import DashboardLayout from "../../../../components/dashboard/DashboardLayout";
-import { getUserConnections, getDatabaseRelations, getConnectionStringById } from "../../../../actions/db";
+import { getUserConnections, getDatabaseRelations, getConnectionStringById, getSampleRowsAction } from "../../../../actions/db";
 import { simulateSchemaChangeAction, type ImpactSimulationResult } from "../../../../actions/impactSimulator";
 import { authClient } from "@/src/components/landing/auth";
 import { Card } from "../../../../components/ui/card";
@@ -258,6 +258,100 @@ export default function PlaygroundDynamicPage({ params }: { params: Promise<{ co
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [activeTables, setActiveTables] = useState<Set<string>>(new Set());
+
+  // Hover table preview state
+  const [hoveredTable, setHoveredTable] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<{
+    loading: boolean;
+    rows?: any[];
+    error?: string;
+    tableName?: string;
+  } | null>(null);
+
+  const cachedSamples = useRef<Record<string, any[]>>({});
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleNodeMouseEnter = useCallback(async (event: React.MouseEvent, node: Node) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    
+    const tableName = node.id;
+    setHoveredTable(tableName);
+    
+    if (cachedSamples.current[tableName]) {
+      setPreviewData({
+        loading: false,
+        rows: cachedSamples.current[tableName],
+        tableName,
+      });
+      return;
+    }
+
+    setPreviewData({
+      loading: true,
+      tableName,
+    });
+
+    try {
+      const res = await getSampleRowsAction(decodedConnectionId, tableName, session?.user?.id);
+      if (res.success && res.data) {
+        cachedSamples.current[tableName] = res.data;
+        setPreviewData((prev) => {
+          if (prev?.tableName === tableName) {
+            return {
+              loading: false,
+              rows: res.data,
+              tableName,
+            };
+          }
+          return prev;
+        });
+      } else {
+        setPreviewData((prev) => {
+          if (prev?.tableName === tableName) {
+            return {
+              loading: false,
+              error: res.error || "Failed to load rows",
+              tableName,
+            };
+          }
+          return prev;
+        });
+      }
+    } catch (err: any) {
+      setPreviewData((prev) => {
+        if (prev?.tableName === tableName) {
+          return {
+            loading: false,
+            error: err.message || "An error occurred",
+            tableName,
+          };
+        }
+        return prev;
+      });
+    }
+  }, [decodedConnectionId, session]);
+
+  const handleNodeMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredTable(null);
+      setPreviewData(null);
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
 
   // Interactive deletion dialog states
   const [deletingTable, setDeletingTable] = useState<string | null>(null);
@@ -647,6 +741,8 @@ export default function PlaygroundDynamicPage({ params }: { params: Promise<{ co
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onNodeMouseEnter={handleNodeMouseEnter}
+              onNodeMouseLeave={handleNodeMouseLeave}
               connectionLineType={ConnectionLineType.SmoothStep}
               proOptions={proOptions}
               fitView
@@ -654,6 +750,79 @@ export default function PlaygroundDynamicPage({ params }: { params: Promise<{ co
               <Background gap={20} size={1} />
               <Controls showInteractive={false} />
             </ReactFlow>
+
+            {/* Floating Hover Preview Card */}
+            <AnimatePresence>
+              {hoveredTable && previewData && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute bottom-4 right-4 z-45 w-[380px] md:w-[480px] max-h-[250px] bg-card/95 backdrop-blur-md border border-primary/20 shadow-2xl rounded-xl overflow-hidden flex flex-col pointer-events-none"
+                >
+                  <div className="bg-primary/10 px-3 py-2 border-b border-primary/10 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Table2 className="w-3.5 h-3.5 text-primary animate-pulse" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                        {hoveredTable}
+                      </span>
+                    </div>
+                    <span className="text-[9px] bg-primary/15 text-primary border border-primary/25 px-1.5 py-0.5 rounded font-mono">
+                      Sample Data (First 2 Rows)
+                    </span>
+                  </div>
+                  
+                  <div className="p-3 overflow-auto flex-1 text-xs">
+                    {previewData.loading ? (
+                      <div className="flex flex-col items-center justify-center py-6 gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                        <span className="text-[10px] text-muted-foreground font-mono">Loading records...</span>
+                      </div>
+                    ) : previewData.error ? (
+                      <div className="flex items-center justify-center py-6 gap-1.5 text-red-500 font-mono text-[10px]">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>{previewData.error}</span>
+                      </div>
+                    ) : !previewData.rows || previewData.rows.length === 0 ? (
+                      <div className="text-center py-6 text-[10px] text-muted-foreground font-mono">
+                        No rows found in this table.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto border rounded-lg bg-background/50">
+                        <table className="w-full text-left border-collapse text-[10px] font-mono">
+                          <thead>
+                            <tr className="border-b bg-muted/30">
+                              {Object.keys(previewData.rows[0]).map((colName) => (
+                                <th key={colName} className="p-1.5 border-r last:border-r-0 font-bold text-muted-foreground truncate max-w-[120px]" title={colName}>
+                                  {colName}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previewData.rows.map((row, rowIndex) => (
+                              <tr key={rowIndex} className="border-b last:border-b-0 hover:bg-muted/10">
+                                {Object.entries(row).map(([colName, val]: any, cellIndex) => {
+                                  const displayVal = val === null ? 'NULL' : typeof val === 'object' ? JSON.stringify(val) : String(val);
+                                  return (
+                                    <td key={cellIndex} className="p-1.5 border-r last:border-r-0 truncate max-w-[120px]" title={displayVal}>
+                                      <span className={val === null ? 'text-muted-foreground/50 italic' : ''}>
+                                        {displayVal}
+                                      </span>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Add Table visual slider sidebar */}
