@@ -16,8 +16,12 @@ import {
   X,
   PlusCircle,
   CodeXml,
-  LogOut
+  LogOut,
+  Sparkles,
+  ShieldAlert,
+  Gamepad2,
 } from "lucide-react";
+import { ThemeToggle } from "../theme-toggle";
 import { useState, useEffect } from "react";
 import { authClient } from "@/src/components/landing/auth";
 
@@ -48,18 +52,22 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   };
 
   const navItems = [
-    { label: "Overview", icon: LayoutDashboard, path: "/dashboard" },
+    { label: "Overview", icon: LayoutDashboard, path: "/dashboard", base: "/dashboard", exact: true },
     { 
       label: "Tables", 
       icon: Table2, 
-      path: "/dashboard/tables" 
+      path: lastConnId ? `/dashboard/tables/${lastConnId}` : "/dashboard/tables",
+      base: "/dashboard/tables"
     },
-    { label: "Data Quality", icon: BarChart3, path: "/dashboard/quality" },
-    // { label: "Compliance", icon: ShieldCheck, path: "/dashboard/compliance" },
-    { label: "Lineage", icon: GitBranch, path: "/dashboard/lineage" },
-    { label: "Query Runner", icon: CodeXml, path: "/dashboard/query" }
-//    { label: "AI Chat", icon: MessageSquare, path: "/dashboard/chat" },
-    // { label: "Settings", icon: Settings, path: "/dashboard/settings" },
+    { label: "Data Quality", icon: BarChart3, path: lastConnId ? `/dashboard/quality/${lastConnId}` : "/dashboard/quality", base: "/dashboard/quality" },
+    // { label: "Compliance", icon: ShieldCheck, path: "/dashboard/compliance", base: "/dashboard/compliance" },
+    { label: "Lineage", icon: GitBranch, path: lastConnId ? `/dashboard/lineage/${lastConnId}` : "/dashboard/lineage", base: "/dashboard/lineage" },
+    { label: "Interactive Playground", icon: Gamepad2, path: lastConnId ? `/dashboard/playground/${lastConnId}` : "/dashboard/playground", base: "/dashboard/playground" },
+    { label: "Impact Simulator", icon: ShieldAlert, path: lastConnId ? `/dashboard/impact/${lastConnId}` : "/dashboard/impact", base: "/dashboard/impact" },
+    { label: "Text-to-SQL", icon: Sparkles, path: lastConnId ? `/dashboard/studio/${lastConnId}` : "/dashboard/studio", base: "/dashboard/studio" },
+    { label: "Query Runner", icon: CodeXml, path: "/dashboard/query", base: "/dashboard/query" }
+//    { label: "AI Chat", icon: MessageSquare, path: "/dashboard/chat", base: "/dashboard/chat" },
+    // { label: "Settings", icon: Settings, path: "/dashboard/settings", base: "/dashboard/settings" },
   ];
 
   return (
@@ -95,12 +103,9 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
 
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
-            const isActive = 
-              item.label === "Overview" 
-                ? pathname === "/dashboard" 
-                : pathname.startsWith("/dashboard/tables") && item.label === "Tables" 
-                  ? true 
-                  : pathname.startsWith(item.path);
+            const isActive = item.exact 
+              ? pathname === item.base 
+              : pathname.startsWith(item.base);
 
             return (
               <Link
@@ -192,12 +197,15 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             <Database className="w-5 h-5 text-primary" />
             <span className="font-bold text-sm">DataLens AI</span>
           </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="p-2 rounded-lg bg-sidebar-accent"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 rounded-lg bg-sidebar-accent"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-x-hidden">

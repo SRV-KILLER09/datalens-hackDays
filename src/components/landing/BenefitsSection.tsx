@@ -27,7 +27,7 @@ const benefits = [
 ];
 
 const BenefitsSection = () => (
-  <section className="py-24 border-t border-border/50">
+  <section className="py-24 border-t border-border/50 bg-slate-50 dark:bg-muted/20">
     <div className="container mx-auto px-6">
       <motion.h2
         initial={{ opacity: 0, y: 16 }}

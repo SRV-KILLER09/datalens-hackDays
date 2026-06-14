@@ -135,30 +135,130 @@ export async function getDatabaseMetadata(connectionString: string) {
 export async function getDatabaseRelations(uri: string) {
   try {
     const metadata = await getDatabaseMetadata(uri);
-    if (!metadata.success || !metadata.data) return metadata;
+    if (!metadata.success || !metadata.data) {
+      return { success: false, error: metadata.error || "Failed to load database schema metadata." };
+    }
 
     const relQuery = `
       SELECT
           tc.table_name AS source_table, 
           kcu.column_name AS source_column, 
           ccu.table_name AS target_table,
-          ccu.column_name AS target_column
+          ccu.column_name AS target_column,
+          EXISTS (
+              SELECT 1 
+              FROM information_schema.table_constraints AS tc2
+              JOIN information_schema.key_column_usage AS kcu2
+                ON tc2.constraint_name = kcu2.constraint_name AND tc2.table_schema = kcu2.table_schema
+              WHERE tc2.table_name = tc.table_name 
+                AND kcu2.column_name = kcu.column_name 
+                AND tc2.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+          ) AS is_unique
       FROM 
           information_schema.table_constraints AS tc 
           JOIN information_schema.key_column_usage AS kcu
-            ON tc.constraint_name = kcu.constraint_name
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
           JOIN information_schema.constraint_column_usage AS ccu
-            ON ccu.constraint_name = tc.constraint_name
+            ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = ccu.table_schema
       WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public';
     `;
 
     const relations = await executeQuery(uri, relQuery);
 
+    const schema = metadata.data.schema as any[];
+    const tableCols: Record<string, string[]> = {};
+    const tableColObjects: Record<string, any[]> = {};
+    schema.forEach((col: any) => {
+      const t = col.table_name || col.TABLE_NAME;
+      const c = col.column_name || col.COLUMN_NAME;
+      if (!tableCols[t]) {
+        tableCols[t] = [];
+        tableColObjects[t] = [];
+      }
+      tableCols[t].push(c);
+      tableColObjects[t].push(col);
+    });
+
+    const activeTables = Object.keys(tableCols);
+    const polyRelations: any[] = [];
+    
+    const isNameMatch = (tableName: string, typeValue: string) => {
+      const t = tableName.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const v = typeValue.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return t === v || t === v + "s" || t === v + "es" || v === t + "s" || v === t + "es" || t.includes(v) || v.includes(t);
+    };
+
+    for (const [tableName, cols] of Object.entries(tableCols)) {
+      const typeCols = cols.filter(c => c.endsWith('_type'));
+      for (const typeCol of typeCols) {
+        const prefix = typeCol.substring(0, typeCol.length - 5);
+        const idCol = `${prefix}_id`;
+        if (cols.includes(idCol)) {
+          try {
+            const distinctValsQuery = `
+              SELECT DISTINCT "${typeCol}" AS val 
+              FROM "${tableName}" 
+              WHERE "${typeCol}" IS NOT NULL AND "${typeCol}" != '';
+            `;
+            const distinctResult = await executeQuery(uri, distinctValsQuery);
+            const typeValues: string[] = distinctResult.map((r: any) => r.val || r.VAL || "");
+            const matchedTargets = new Set<string>();
+
+            for (const val of typeValues) {
+              if (!val) continue;
+              const matchTable = activeTables.find(t => isNameMatch(t, val));
+              if (matchTable) {
+                matchedTargets.add(matchTable);
+              }
+            }
+
+            for (const targetTable of matchedTargets) {
+              const targetCols = tableColObjects[targetTable] || [];
+              const targetPkCol = targetCols.find(c => c.is_primary_key || c.is_primary_key === 'true')?.column_name || 'id';
+
+              polyRelations.push({
+                source_table: tableName,
+                source_column: idCol,
+                target_table: targetTable,
+                target_column: targetPkCol,
+                relation_type: "polymorphic"
+              });
+            }
+
+            if (matchedTargets.size === 0) {
+              const fallbackTable = activeTables.find(t => isNameMatch(t, prefix));
+              if (fallbackTable) {
+                const targetCols = tableColObjects[fallbackTable] || [];
+                const targetPkCol = targetCols.find(c => c.is_primary_key || c.is_primary_key === 'true')?.column_name || 'id';
+                polyRelations.push({
+                  source_table: tableName,
+                  source_column: idCol,
+                  target_table: fallbackTable,
+                  target_column: targetPkCol,
+                  relation_type: "polymorphic"
+                });
+              }
+            }
+          } catch (err) {
+            console.error(`Error detecting polymorphic target values for ${tableName}.${typeCol}:`, err);
+          }
+        }
+      }
+    }
+
+    const finalRelations = relations.map((r: any) => ({
+      source_table: r.source_table,
+      source_column: r.source_column,
+      target_table: r.target_table,
+      target_column: r.target_column,
+      relation_type: r.is_unique === true || r.is_unique === 'true' || String(r.is_unique) === 'true' ? 'one_to_one' : 'one_to_many'
+    })).concat(polyRelations);
+
     return { 
       success: true, 
       data: { 
         schema: metadata.data.schema, 
-        relations: relations 
+        relations: finalRelations 
       } 
     };
   } catch (error: any) {
@@ -417,7 +517,28 @@ export async function deleteConnection(connectionId: string, userId: string) {
     const result = await db.delete(connections).where(and(eq(connections.id, connectionId), eq(connections.userId, userId))).returning({ deletedId: connections.id });
     if (result.length === 0) return { success: false, error: "Unauthorized." };
     revalidatePath("/dashboard/connections");
+    revalidatePath("/dashboard/tables");
 
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateConnectionName(connectionId: string, userId: string, newName: string) {
+  try {
+    const result = await db.update(connections)
+      .set({ name: newName })
+      .where(and(eq(connections.id, connectionId), eq(connections.userId, userId)))
+      .returning({ updatedId: connections.id });
+      
+    if (result.length === 0) return { success: false, error: "Unauthorized or connection not found." };
+    
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/tables");
+    revalidatePath("/dashboard/studio");
+    revalidatePath("/dashboard/impact");
+    
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -496,3 +617,165 @@ export async function analyzeImpactAction(query: string) {
     return { success: false, error: err.message || "Groq Analysis Failed" };
   }
 }
+
+// ---------------------------------------------------------------------------
+// inspectConnectionSchema
+// Replaces scratch_inspect.ts & scratch_app_db.ts — runs live schema inspection
+// (tables, PK/FK metadata, row counts, sample rows) via the connection ID slug.
+// ---------------------------------------------------------------------------
+export async function inspectConnectionSchema(
+  connectionId: string,
+  userId?: string,
+  options: { sampleRows?: number; includeSamples?: boolean } = {}
+) {
+  const { sampleRows = 3, includeSamples = true } = options;
+  const FALLBACK_URI = process.env.NEXT_PUBLIC_FALLBACK_URI!;
+
+  try {
+    // 1. Resolve the connection URI
+    let uri = "";
+    if (connectionId === "demo-neon-db" || !userId) {
+      uri = FALLBACK_URI;
+    } else {
+      uri = (await getConnectionStringById(connectionId, userId)) || FALLBACK_URI;
+    }
+    if (!uri) return { success: false, error: "Could not resolve connection URI." };
+
+    const postgres = await getPostgres();
+    const sql = postgres(uri, { max: 1, connect_timeout: 10 });
+
+    try {
+      // 2. All tables
+      const tables = await sql`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+        ORDER BY table_name;
+      `;
+
+      // 3. Full column metadata
+      const columns = await sql`
+        SELECT
+          table_name,
+          column_name,
+          data_type,
+          is_nullable,
+          column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        ORDER BY table_name, ordinal_position;
+      `;
+
+      // 4. PK + FK relationships
+      const pkFkInfo = await sql`
+        SELECT
+          tc.table_name AS source_table,
+          kcu.column_name AS source_column,
+          tc.constraint_type,
+          ccu.table_name AS target_table,
+          ccu.column_name AS target_column
+        FROM
+          information_schema.table_constraints AS tc
+          JOIN information_schema.key_column_usage AS kcu
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+          LEFT JOIN information_schema.constraint_column_usage AS ccu
+            ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+        WHERE tc.table_schema = 'public' AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')
+        ORDER BY tc.table_name, tc.constraint_type;
+      `;
+
+      // 5. Row counts + optional sample rows per table
+      const tableDetails: Record<string, { rowCount: number; sample: any[]; columns: any[] }> = {};
+
+      for (const t of tables) {
+        const name = t.table_name as string;
+        const [countRow] = await sql.unsafe(`SELECT COUNT(*) as row_count FROM "${name}"`);
+        const rowCount = Number(countRow.row_count);
+        const sample = includeSamples
+          ? await sql.unsafe(`SELECT * FROM "${name}" LIMIT ${sampleRows}`)
+          : [];
+        const tableCols = (columns as any[]).filter((c) => c.table_name === name);
+        tableDetails[name] = { rowCount, sample: JSON.parse(JSON.stringify(sample)), columns: tableCols };
+      }
+
+      return {
+        success: true,
+        data: {
+          connectionId,
+          uri: uri.replace(/:[^:@]+@/, ":***@"), // redact password
+          tableCount: tables.length,
+          tables: tables.map((t) => t.table_name),
+          pkFkRelationships: JSON.parse(JSON.stringify(pkFkInfo)),
+          tableDetails,
+        },
+      };
+    } finally {
+      await sql.end();
+    }
+  } catch (error: any) {
+    console.error("[inspectConnectionSchema] Error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getSampleRowsAction(connectionId: string, tableName: string, userId?: string) {
+  const FALLBACK_URI = process.env.NEXT_PUBLIC_FALLBACK_URI!;
+  let uri = "";
+  if (connectionId === "demo-neon-db" || connectionId === "demo-mode" || !userId) {
+    uri = FALLBACK_URI;
+  } else {
+    uri = (await getConnectionStringById(connectionId, userId)) || FALLBACK_URI;
+  }
+  if (!uri) return { success: false, error: "Connection URI not found." };
+
+  if (uri.startsWith('postgres')) {
+    const postgres = await getPostgres();
+    const sqlConnection = postgres(uri, { max: 1 });
+    try {
+      const data = await sqlConnection.unsafe(`SELECT * FROM "${tableName}" LIMIT 2`);
+      return { success: true, data: JSON.parse(JSON.stringify(data)) };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    } finally {
+      await sqlConnection.end();
+    }
+  } else if (uri.startsWith('mysql')) {
+    const mysql = await getMySQL();
+    let connection;
+    try {
+      connection = await mysql.createConnection(uri);
+      const [rows]: any = await connection.execute(`SELECT * FROM \`${tableName}\` LIMIT 2`);
+      return { success: true, data: rows };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    } finally {
+      if (connection) await connection.end();
+    }
+  } else if (uri.startsWith('snowflake')) {
+    const snowflake = await getSnowflake();
+    try {
+      const url = new URL(uri);
+      const connection = snowflake.createConnection({
+        account: url.hostname,
+        username: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
+        database: url.pathname.split('/')[1],
+        schema: url.pathname.split('/')[2] || 'PUBLIC',
+        warehouse: url.searchParams.get('warehouse') || undefined
+      });
+
+      const connect = () => new Promise((res, rej) => connection.connect((err, conn) => err ? rej(err) : res(conn)));
+      const execute = (sqlText: string) => new Promise((res, rej) => {
+        connection.execute({ sqlText, complete: (err, stmt, rows) => err ? rej(err) : res(rows) });
+      });
+
+      await connect();
+      const rows: any = await execute(`SELECT * FROM "${tableName}" LIMIT 2`);
+      return { success: true, data: rows };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: "Unsupported database provider." };
+}
+

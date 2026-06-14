@@ -12,10 +12,11 @@ import {
   Activity,
   MoreVertical,
   Loader2,
-  Sparkles
+  Sparkles,
+  Pencil
 } from "lucide-react";
 import Link from "next/link";
-import { getUserConnections, deleteConnection } from "../../../actions/db";
+import { getUserConnections, deleteConnection, updateConnectionName } from "../../../actions/db";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { authClient } from "@/src/components/landing/auth";
@@ -26,12 +27,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/src/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/src/components/ui/dialog";
 
 export default function ConnectionsPage() {
   const { data: session } = authClient.useSession();
   const [connections, setConnections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [renameDialog, setRenameDialog] = useState({ isOpen: false, id: "", name: "" });
+  const [isRenaming, setIsRenaming] = useState(false);
 
   const DEMO_CONNECTION = {
     id: "demo-neon-db",
@@ -75,6 +86,28 @@ export default function ConnectionsPage() {
         alert(res.error || "Failed to delete connection.");
       }
     }
+  };
+
+  const handleRenameClick = (id: string, currentName: string) => {
+    if (id === "demo-neon-db") {
+      alert("The demo database cannot be renamed.");
+      return;
+    }
+    setRenameDialog({ isOpen: true, id, name: currentName });
+  };
+
+  const submitRename = async () => {
+    if (!session?.user?.id || !renameDialog.id || !renameDialog.name.trim()) return;
+
+    setIsRenaming(true);
+    const res = await updateConnectionName(renameDialog.id, session.user.id, renameDialog.name.trim());
+    if (res.success) {
+      setConnections((prev) => prev.map(c => c.id === renameDialog.id ? { ...c, name: renameDialog.name.trim() } : c));
+      setRenameDialog({ isOpen: false, id: "", name: "" });
+    } else {
+      alert(res.error || "Failed to rename connection.");
+    }
+    setIsRenaming(false);
   };
 
   const filteredConnections = connections.filter(c => 
@@ -130,6 +163,12 @@ export default function ConnectionsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          className="cursor-pointer"
+                          onClick={() => handleRenameClick(conn.id, conn.name)}
+                        >
+                          <Pencil className="w-4 h-4 mr-2" /> Rename
+                        </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="text-destructive cursor-pointer"
                           onClick={() => handleDelete(conn.id)}
@@ -187,6 +226,40 @@ export default function ConnectionsPage() {
           <p className="text-muted-foreground text-sm mb-8">Try adjusting your search query.</p>
         </div>
       )}
+
+      <Dialog open={renameDialog.isOpen} onOpenChange={(open) => !open && setRenameDialog({ isOpen: false, id: "", name: "" })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Database</DialogTitle>
+            <DialogDescription>
+              Choose a new name for your connected database. This name will be visible across the app.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Input
+              value={renameDialog.name}
+              onChange={(e) => setRenameDialog({ ...renameDialog, name: e.target.value })}
+              placeholder="e.g. Production PostgreSQL"
+              className="h-10"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  submitRename();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialog({ isOpen: false, id: "", name: "" })}>
+              Cancel
+            </Button>
+            <Button onClick={submitRename} disabled={isRenaming || !renameDialog.name.trim()}>
+              {isRenaming ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

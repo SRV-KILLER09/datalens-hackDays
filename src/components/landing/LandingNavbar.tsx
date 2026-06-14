@@ -6,6 +6,7 @@ import { Database, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { authClient } from "./auth";
 import { useRouter } from "next/navigation";
+import { ThemeToggle } from "../theme-toggle";
 
 const LandingNavbar = () => {
   const [open, setOpen] = useState(false);
@@ -54,6 +55,7 @@ const LandingNavbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3 ml-auto">
+          <ThemeToggle />
           {isPending ? (
             <div className="h-8 w-20 bg-muted animate-pulse rounded" />
           ) : !session ? (
@@ -99,12 +101,15 @@ const LandingNavbar = () => {
         </div>
 
         {/* Mobile Toggle */}
-        <button
-          className="md:hidden ml-auto text-muted-foreground cursor-pointer outline-none"
-          onClick={() => setOpen(!open)}
-        >
-          {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        <div className="md:hidden ml-auto flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            className="text-muted-foreground cursor-pointer outline-none"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}

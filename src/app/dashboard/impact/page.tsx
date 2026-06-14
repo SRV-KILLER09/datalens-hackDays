@@ -6,7 +6,7 @@ import { authClient } from "@/src/components/landing/auth";
 import { getUserConnections } from "../../../actions/db";
 import { Loader2 } from "lucide-react";
 
-export default function LineageRedirect() {
+export default function ImpactRedirect() {
   const router = useRouter();
   const { data: session, isPending: authLoading } = authClient.useSession();
 
@@ -16,7 +16,7 @@ export default function LineageRedirect() {
     const performRedirect = async () => {
       const storedId = localStorage.getItem("last_connection_id");
       if (storedId) {
-        router.replace(`/dashboard/lineage/${encodeURIComponent(storedId)}`);
+        router.replace(`/dashboard/impact/${encodeURIComponent(storedId)}`);
         return;
       }
 
@@ -24,12 +24,12 @@ export default function LineageRedirect() {
         const res = await getUserConnections(session.user.id);
         if (res.success && res.data && res.data.length > 0) {
           const firstConnId = res.data[0].id;
-          router.replace(`/dashboard/lineage/${encodeURIComponent(firstConnId)}`);
+          router.replace(`/dashboard/impact/${encodeURIComponent(firstConnId)}`);
           return;
         }
       }
 
-      router.replace("/dashboard/lineage/demo-neon-db");
+      router.replace("/dashboard/impact/demo-neon-db");
     };
 
     performRedirect();

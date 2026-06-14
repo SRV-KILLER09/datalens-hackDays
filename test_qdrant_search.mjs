@@ -20,7 +20,7 @@ async function run() {
             },
         });
         fs.writeFileSync('qdrant_error.txt', "Success!");
-    } catch (e: any) {
+    } catch (e) {
         fs.writeFileSync('qdrant_error.txt', JSON.stringify({
             status: e?.status,
             data: e?.data

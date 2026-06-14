@@ -9,7 +9,39 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Defaulting to Dark Mode HSL values */
+  /* Light mode (default) */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 145 72% 40%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 20%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 145 72% 40%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 145 72% 40%;
+  --radius: 0.625rem;
+
+  --sidebar: 0 0% 98%;
+  --sidebar-foreground: 0 0% 20%;
+  --sidebar-primary: 145 72% 40%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 94%;
+  --sidebar-accent-foreground: 0 0% 9%;
+  --sidebar-border: 0 0% 90%;
+  --sidebar-ring: 145 72% 40%;
+}
+
+.dark {
   --background: 0 0% 5%;
   --foreground: 0 0% 96%;
   --card: 0 0% 8%;
@@ -29,9 +61,7 @@
   --border: 0 0% 14%;
   --input: 0 0% 14%;
   --ring: 145 72% 50%;
-  --radius: 0.625rem;
 
-  /* Sidebar & Chart specific */
   --sidebar: 0 0% 8%;
   --sidebar-foreground: 0 0% 96%;
   --sidebar-primary: 145 72% 50%;
@@ -42,10 +72,10 @@
   --sidebar-ring: 145 72% 50%;
 }
 
-@theme {
+@theme inline {
   --font-sans: "Albert Sans", ui-sans-serif, system-ui, sans-serif;
 
-  /* Mapping variables to Tailwind classes */
+  /* inline = utilities reference CSS vars at runtime (required for theme toggle) */
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));
@@ -65,6 +95,14 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -80,6 +118,12 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground antialiased;
@@ -99,4 +143,37 @@
   .glow-green {
     box-shadow: 0 0 60px -12px color-mix(in srgb, var(--color-primary), transparent 85%);
   }
+}
+
+/* Custom Playground Animations */
+@keyframes edge-pulse-travel {
+  0% {
+    offset-distance: 0%;
+  }
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+.playground-pulse-ball {
+  animation: edge-pulse-travel 1.4s linear infinite;
+  offset-rotate: auto;
+}
+
+@keyframes node-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20%, 60% { transform: translate(-1.5px, 1px); }
+  40%, 80% { transform: translate(1.5px, -1px); }
+}
+
+.shake-warning {
+  animation: node-shake 0.3s ease-in-out infinite;
+  border-color: var(--color-destructive) !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3) !important;
+}
+
+.warning-edge-glowing {
+  stroke: var(--color-destructive) !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));
 }

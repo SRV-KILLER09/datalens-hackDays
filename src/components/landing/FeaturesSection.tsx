@@ -35,8 +35,13 @@ const features = [
   },
   {
     icon: GitBranch,
-    title: "ER Diagrams & Lineage",
-    desc: "Interactive relationship maps and data flow visualization.",
+    title: "Column-Level Lineage",
+    desc: "Trace how columns connect across tables — see what breaks if you change a field.",
+  },
+  {
+    icon: MessageSquare,
+    title: "Text-to-SQL Studio",
+    desc: "Ask in plain English, get SQL, and run read-only queries with table or chart views.",
   },
   {
     icon: BookOpen,
@@ -61,7 +66,7 @@ const features = [
 ];
 
 const FeaturesSection = () => (
-  <section id="features" className="py-24">
+  <section id="features" className="py-24 bg-white dark:bg-background">
     <div className="container mx-auto px-6">
       <motion.div
         initial={{ opacity: 0, y: 16 }}

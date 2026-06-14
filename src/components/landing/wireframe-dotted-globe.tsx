@@ -3,7 +3,15 @@
 import { useEffect, useRef } from "react"
 import * as d3 from "d3"
 
-export default function RotatingEarth({ width = 800, height = 800 }: { width?: number; height?: number }) {
+export default function RotatingEarth({
+  width = 800,
+  height = 800,
+  isDark = true,
+}: {
+  width?: number
+  height?: number
+  isDark?: boolean
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -24,10 +32,8 @@ export default function RotatingEarth({ width = 800, height = 800 }: { width?: n
       .translate([width / 2, height / 2])
       .clipAngle(90)
 
-    // Mathematically generate dots (no external fetch needed)
     const dots: { lng: number; lat: number }[] = []
     for (let lat = -90; lat <= 90; lat += 4) {
-      // Adjust density based on latitude to keep dots evenly spaced
       const step = 4 / Math.cos((lat * Math.PI) / 180) || 4
       for (let lng = -180; lng <= 180; lng += step) {
         dots.push({ lng, lat })
@@ -35,32 +41,30 @@ export default function RotatingEarth({ width = 800, height = 800 }: { width?: n
     }
 
     let rotation: [number, number] = [0, -15]
+    const strokeColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)"
+    const dotBase = isDark ? "255, 255, 255" : "0, 0, 0"
 
     const render = () => {
       context.clearRect(0, 0, width, height)
-      
+
       const currRot = projection.rotate()
-      
-      // Globe Boundary
+
       context.beginPath()
       context.arc(width / 2, height / 2, projection.scale(), 0, 2 * Math.PI)
-      context.strokeStyle = "rgba(255, 255, 255, 0.1)"
+      context.strokeStyle = strokeColor
       context.lineWidth = 1
       context.stroke()
 
-      // Draw Grid Dots
       dots.forEach(dot => {
         const distance = d3.geoDistance([dot.lng, dot.lat], [-currRot[0], -currRot[1]])
-        
-        // Only draw dots on the front half
+
         if (distance < Math.PI / 2) {
           const p = projection([dot.lng, dot.lat])
           if (p) {
-            // Fade dots at the edges for a spherical 3D effect
-            const opacity = Math.max(0, 0.6 * (1 - distance / (Math.PI / 2)))
+            const opacity = Math.max(0, (isDark ? 0.6 : 0.35) * (1 - distance / (Math.PI / 2)))
             context.beginPath()
             context.arc(p[0], p[1], 0.8, 0, 2 * Math.PI)
-            context.fillStyle = `rgba(255, 255, 255, ${opacity})`
+            context.fillStyle = `rgba(${dotBase}, ${opacity})`
             context.fill()
           }
         }
@@ -74,7 +78,7 @@ export default function RotatingEarth({ width = 800, height = 800 }: { width?: n
     })
 
     return () => timer.stop()
-  }, [width, height])
+  }, [width, height, isDark])
 
   return <canvas ref={canvasRef} className="opacity-60" />
 }

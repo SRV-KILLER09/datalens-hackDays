@@ -1,9 +1,10 @@
 "use server";
 
 import { db } from "../db";
-import { entities, fields, relationships } from "../db/schema";
+import { entities, fields, relationships, connections } from "../db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { getSession } from "../lib/neo4j";
+import { getDatabaseRelations } from "./db";
 
 // Define the fallback URI for guest mode
 
@@ -13,8 +14,18 @@ export async function buildGraphForInference(connectionId: string) {
     let session;
 
     try {
-        // Handle guest mode by normalizing the connectionId if needed
-        // or ensure your Relational DB has metadata synced for this specific string ID.
+        let uri = "";
+        if (connectionId === "demo-neon-db") {
+            uri = process.env.NEXT_PUBLIC_FALLBACK_URI || "";
+        } else {
+            const [conn] = await db.select().from(connections).where(eq(connections.id, connectionId)).limit(1);
+            uri = conn?.tableUri || "";
+        }
+
+        if (!uri) {
+            return { success: false, error: "Could not resolve connection URI." };
+        }
+
         const dbEntities = await db.select().from(entities).where(eq(entities.connectionId, connectionId));
 
         if (dbEntities.length === 0) {
@@ -23,15 +34,25 @@ export async function buildGraphForInference(connectionId: string) {
 
         const entityIds = dbEntities.map(e => e.id);
         const dbFields = await db.select().from(fields).where(inArray(fields.entityId, entityIds));
-        const fieldIds = dbFields.map(f => f.id);
 
-        let dbRelationships: any[] = [];
-        if (fieldIds.length > 0) {
-            dbRelationships = await db.select().from(relationships).where(inArray(relationships.sourceFieldId, fieldIds));
-        }
+        // Get live relations (includes standard + polymorphic)
+        const relResult = await getDatabaseRelations(uri);
+        const activeRels = relResult.success && relResult.data ? relResult.data.relations : [];
 
-        const fieldEntityMap = new Map();
-        dbFields.forEach(f => fieldEntityMap.set(f.id, f.entityId));
+        const entityMap = new Map();
+        const entityIdToName = new Map();
+        dbEntities.forEach(e => {
+            entityMap.set(e.name, e.id);
+            entityIdToName.set(e.id, e.name);
+        });
+
+        const fieldMap = new Map();
+        dbFields.forEach(f => {
+            const entName = entityIdToName.get(f.entityId);
+            if (entName) {
+                fieldMap.set(`${entName}.${f.name}`, f.id);
+            }
+        });
 
         session = getSession();
 
@@ -58,7 +79,8 @@ export async function buildGraphForInference(connectionId: string) {
             }
 
             for (const field of dbFields) {
-                const isForeignKey = dbRelationships.some((r: any) => r.sourceFieldId === field.id);
+                const entName = entityIdToName.get(field.entityId);
+                const isForeignKey = activeRels.some((r: any) => r.source_table === entName && r.source_column === field.name);
 
                 await tx.run(`
                     MERGE (f:Field {id: $id})
@@ -88,28 +110,37 @@ export async function buildGraphForInference(connectionId: string) {
                 });
             }
 
-            for (const rel of dbRelationships) {
-                await tx.run(`
-                    MATCH (source:Field {id: $sourceId})
-                    MATCH (target:Field {id: $targetId})
-                    MERGE (source)-[:REFERENCES_FIELD]->(target)
-                `, {
-                    sourceId: rel.sourceFieldId,
-                    targetId: rel.targetFieldId
-                });
+            for (const rel of activeRels) {
+                const sourceId = fieldMap.get(`${rel.source_table}.${rel.source_column}`);
+                const targetId = fieldMap.get(`${rel.target_table}.${rel.target_column}`);
 
-                const sourceEntityId = fieldEntityMap.get(rel.sourceFieldId);
-                const targetEntityId = fieldEntityMap.get(rel.targetFieldId);
-
-                if (sourceEntityId && targetEntityId) {
+                if (sourceId && targetId) {
                     await tx.run(`
-                        MATCH (sourceE:Entity {id: $sourceId})
-                        MATCH (targetE:Entity {id: $targetId})
-                        MERGE (sourceE)-[:REFERENCES]->(targetE)
+                        MATCH (source:Field {id: $sourceId})
+                        MATCH (target:Field {id: $targetId})
+                        MERGE (source)-[r:REFERENCES_FIELD]->(target)
+                        SET r.type = $type
                     `, {
-                        sourceId: sourceEntityId,
-                        targetId: targetEntityId
+                        sourceId,
+                        targetId,
+                        type: rel.relation_type || "one_to_many"
                     });
+
+                    const sourceEntityId = entityMap.get(rel.source_table);
+                    const targetEntityId = entityMap.get(rel.target_table);
+
+                    if (sourceEntityId && targetEntityId) {
+                        await tx.run(`
+                            MATCH (sourceE:Entity {id: $sourceId})
+                            MATCH (targetE:Entity {id: $targetId})
+                            MERGE (sourceE)-[r:REFERENCES]->(targetE)
+                            SET r.type = $type
+                        `, {
+                            sourceId: sourceEntityId,
+                            targetId: targetEntityId,
+                            type: rel.relation_type || "one_to_many"
+                        });
+                    }
                 }
             }
         });

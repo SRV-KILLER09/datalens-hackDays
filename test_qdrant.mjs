@@ -19,7 +19,7 @@ async function run() {
             },
         });
         console.log("Mock search successful");
-    } catch (e: any) {
+    } catch (e) {
         console.error("Error status:", e?.status);
         console.error("Error response data:", JSON.stringify(e?.data, null, 2));
     }

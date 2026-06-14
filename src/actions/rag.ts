@@ -11,7 +11,7 @@ import { getSession } from "../lib/neo4j";
 import { generateDocumentationImages, saveImageMetadata } from "./puppeteerGenerator";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const NAMESPACE = "0ea2b2f2-67a0-4d67-95f0-9b8a99c9605c"; // Standard UUID namespace
+const NAMESPACE = "8019c11c-b7db-4985-9c69-c44ded20f014"; // Standard UUID namespace
 
 export async function syncAIDocumentation(connectionId: string) {
     if (!connectionId) return { success: false, error: "Connection ID required." };
@@ -42,7 +42,7 @@ export async function syncAIDocumentation(connectionId: string) {
 
         // 3. Setup Gemini Model instance with strict parameters
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.1-flash-lite",
             systemInstruction: `You are a senior enterprise data architect and technical documentation expert.
 
 Your task is to generate high-quality, professional database documentation in clean Markdown format.
@@ -178,12 +178,23 @@ Return Markdown only.`
             }
         }
 
+        let connectionString = "";
         try {
-            const sessionUser = await db.select({ userId: connections.userId }).from(connections).where(eq(connections.id, connectionId)).limit(1);
-            const userId = sessionUser[0]?.userId || "";
+            const connObj = await db.select({ userId: connections.userId, tableUri: connections.tableUri }).from(connections).where(eq(connections.id, connectionId)).limit(1);
+            const userId = connObj[0]?.userId || "";
+            connectionString = connObj[0]?.tableUri || "";
             await getOrGenerateBusinessReport(connectionId, userId);
         } catch (e) {
             console.error(e);
+        }
+
+        if (connectionString) {
+            try {
+                console.log(`[RAG Backend] Automatically indexing database in Qdrant for connection: ${connectionId}`);
+                await indexRemoteDatabase(connectionId, connectionString);
+            } catch (err) {
+                console.error("[RAG Backend] Automatic Qdrant indexing failed:", err);
+            }
         }
 
         return { success: true, message: `Successfully generated documentation for ${dbEntities.length} tables.` };
@@ -236,6 +247,24 @@ export async function indexRemoteDatabase(connectionId: string, connectionString
             });
         }
 
+        // Check if collection exists and create if missing
+        const collectionsRes = await qdrant.getCollections();
+        const exists = collectionsRes.collections.some(c => c.name === COLLECTION_NAME);
+        if (!exists) {
+            console.log(`[Qdrant] Collection ${COLLECTION_NAME} missing. Creating it...`);
+            await qdrant.createCollection(COLLECTION_NAME, {
+                vectors: {
+                    size: 3072,
+                    distance: "Cosine"
+                }
+            });
+            await qdrant.createPayloadIndex(COLLECTION_NAME, {
+                field_name: "connection_id",
+                field_schema: "keyword",
+                wait: true
+            });
+        }
+
         await qdrant.upsert(COLLECTION_NAME, {
             wait: true,
             points: points
@@ -271,12 +300,22 @@ export async function getRelevantTables(userQuery: string, connectionId: string)
     }
 }
 
-export async function askAiAction(userQuestion: string, connectionId: string) {
+function extractSqlFromResponse(text: string): string {
+    const codeBlockMatch = text.match(/```(?:sql|postgresql)?\s*([\s\S]*?)```/i);
+    if (codeBlockMatch) return codeBlockMatch[1].trim();
+    const selectMatch = text.match(/((?:WITH|SELECT)[\s\S]+)/i);
+    return selectMatch ? selectMatch[1].trim() : text.trim();
+}
+
+export async function textToSqlAction(userQuestion: string, connectionId: string) {
     try {
         const contextResult = await getRelevantTables(userQuestion, connectionId);
 
-        if (!contextResult.success || !contextResult.data || contextResult.data.length === 0) {
-            return { success: false, error: "Could not find relevant schema context." };
+        if (!contextResult.success) {
+            return { success: false, error: contextResult.error || "Failed to fetch schema context." };
+        }
+        if (!contextResult.data || contextResult.data.length === 0) {
+            return { success: false, error: "Could not find relevant schema context. Sync your tables first." };
         }
 
         const contextString = contextResult.data
@@ -284,21 +323,88 @@ export async function askAiAction(userQuestion: string, connectionId: string) {
             .join("\n");
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            systemInstruction: `You are a PostgreSQL expert. Given a schema, write a query. 
-            CRITICAL: Large dataset detected (500k+ rows). Always append 'LIMIT 100' 
-            to SELECT statements to prevent timeouts.`
+            model: "gemini-3.1-flash-lite",
+            systemInstruction: `You are a PostgreSQL expert. Given schema context, write precise read-only SQL queries.
+Rules:
+- Only generate SELECT or WITH queries (read-only).
+- Always append LIMIT 100 unless the user asks for a specific count/limit.
+- Use correct table and column names from the schema.
+- Return a brief explanation (1-2 sentences) followed by a PostgreSQL code block.`
         });
 
         const prompt = `
-            SCHEMA CONTEXT:
-            ${contextString}
+SCHEMA CONTEXT:
+${contextString}
 
-            USER QUESTION:
-            ${userQuestion}
+USER QUESTION:
+${userQuestion}
 
-            TASK:
-            Return a PostgreSQL code block. Include 'LIMIT 100' unless the user asks for a specific count/limit.
+Respond with:
+1. A short explanation of what the query does.
+2. A PostgreSQL code block with the SQL.`;
+
+        const result = await model.generateContent(prompt);
+        const fullText = result.response.text();
+        const sql = extractSqlFromResponse(fullText);
+        const explanation = fullText.replace(/```[\s\S]*?```/g, "").trim();
+
+        return { success: true, data: { sql, explanation, raw: fullText } };
+    } catch (e: any) {
+        console.error("Text-to-SQL Error:", e);
+        return { success: false, error: e.message };
+    }
+}
+
+export async function askAiAction(userQuestion: string, connectionId: string, userId?: string) {
+    try {
+        let contextString = "";
+
+        // 1. Try Qdrant vector search first
+        const contextResult = await getRelevantTables(userQuestion, connectionId);
+
+        if (contextResult.success && contextResult.data && contextResult.data.length > 0) {
+            contextString = contextResult.data.map((c: any) => c.content).join("\n");
+        } else {
+            // 2. Fallback: pull live schema directly from the DB (no sync required)
+            console.log("[askAiAction] Qdrant empty — falling back to live schema inspection.");
+            const FALLBACK_URI = process.env.NEXT_PUBLIC_FALLBACK_URI!;
+            let uri = FALLBACK_URI;
+            if (connectionId !== "demo-neon-db" && userId) {
+                const { getConnectionStringById: getUri } = await import("./db");
+                uri = (await getUri(connectionId, userId)) || FALLBACK_URI;
+            }
+            const metaResult = await getDatabaseMetadata(uri);
+            if (!metaResult.success || !metaResult.data) {
+                return { success: false, error: "Could not load schema context. Try syncing the connection first." };
+            }
+            const tableMap: Record<string, string[]> = {};
+            metaResult.data.schema.forEach((col: any) => {
+                const t = col.table_name;
+                if (!tableMap[t]) tableMap[t] = [];
+                tableMap[t].push(`${col.column_name} (${col.data_type})`);
+            });
+            contextString = Object.entries(tableMap)
+                .map(([table, cols]) => `Table "${table}" contains columns: ${cols.join(", ")}.`)
+                .join("\n");
+        }
+
+        const model = genAI.getGenerativeModel({
+            model: "gemini-3.1-flash-lite",
+            systemInstruction: `You are a database expert and data analyst. Given a schema context, answer the user's question clearly.
+            If the question asks for SQL, write a precise read-only SELECT query with LIMIT 100.
+            If the question is analytical, provide a concise business-level answer.
+            CRITICAL: Large dataset detected (500k+ rows). Always append 'LIMIT 100' to SELECT statements to prevent timeouts.`
+        });
+
+        const prompt = `
+SCHEMA CONTEXT:
+${contextString}
+
+USER QUESTION:
+${userQuestion}
+
+TASK:
+Answer the question. If SQL is needed, return a PostgreSQL code block with LIMIT 100.
         `;
 
         const result = await model.generateContent(prompt);
@@ -367,7 +473,7 @@ export async function getOrGenerateBusinessReport(connectionId: string, userId: 
         const columnCount = dbFields.length;
         const totalRows = Object.values(rowCounts).reduce((a, b) => a + b, 0);
         const piiKeywords = ["email", "phone", "ssn", "address", "password", "card", "cvv", "mobile", "secret", "token"];
-        const piiColumns = dbFields.filter(f => 
+        const piiColumns = dbFields.filter(f =>
             piiKeywords.some(kw => f.name.toLowerCase().includes(kw))
         );
         const piiCount = piiColumns.length;
@@ -407,12 +513,12 @@ Strict Rules:
 
         const prompt = `Analyze this database schema and generate the Business Report JSON:\n\n${schemaSummary}`;
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.1-flash-lite",
             systemInstruction: systemPrompt
         });
         const result = await model.generateContent(prompt);
         let textResult = result.response.text();
-        textResult = textResult.replace(/^```json\n/, "").replace(/^```\n/, "").replace(/\n```$/, "");
+        textResult = textResult.replace(/```(?:json)?/gi, "").trim();
         const parsedReport = JSON.parse(textResult);
         parsedReport.tableCount = tableCount;
         parsedReport.columnCount = columnCount;
@@ -439,5 +545,30 @@ Strict Rules:
     } catch (error: any) {
         console.error("Failed to get or generate business report:", error);
         return { success: false, error: error.message };
+    }
+}
+
+export async function analyzeQueryResultsAction(userQuestion: string, sql: string, dataSample: any[]) {
+    try {
+        const model = genAI.getGenerativeModel({
+            model: "gemini-3.1-flash-lite",
+            systemInstruction: `You are a data analyst. Given a user question, the SQL query used, and a small sample of the JSON results, provide a brief business insight (1-3 sentences) and recommend the best visualization type.
+Respond in strict JSON format:
+{
+  "insight": "string",
+  "recommendedChart": "bar" | "pie" | "line",
+  "labelKey": "string (the column name to use for X-axis or Pie slices)",
+  "valueKey": "string (the column name to use for Y-axis or Pie values)"
+}`
+        });
+
+        const prompt = `USER QUESTION: ${userQuestion}\nSQL: ${sql}\nDATA SAMPLE (first 5 rows): ${JSON.stringify(dataSample.slice(0, 5))}`;
+        const result = await model.generateContent(prompt);
+        let textResult = result.response.text();
+        textResult = textResult.replace(/```(?:json)?/gi, "").trim();
+        return { success: true, data: JSON.parse(textResult) };
+    } catch (e: any) {
+        console.error("AI Analysis Error:", e);
+        return { success: false, error: e.message };
     }
 }

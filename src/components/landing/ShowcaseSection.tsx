@@ -254,7 +254,7 @@ const showcases = [
 ];
 
 const ShowcaseSection = () => (
-  <section id="showcase" className="py-24 border-t border-border/50 bg-[#050505]">
+  <section id="showcase" className="py-24 border-t border-border/50 bg-slate-50 dark:bg-[#050505]">
     <div className="container mx-auto px-6">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -265,10 +265,10 @@ const ShowcaseSection = () => (
         <p className="text-primary text-xs font-semibold tracking-[0.2em] uppercase mb-4">
           Product Showcase
         </p>
-        <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 text-white">
+        <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4 text-foreground">
           See it in action.
         </h2>
-        <p className="text-zinc-400 max-w-lg mx-auto">
+        <p className="text-muted-foreground max-w-lg mx-auto">
           From quality audits to AI chat — every capability built for real schema work.
         </p>
       </motion.div>
@@ -281,7 +281,7 @@ const ShowcaseSection = () => (
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: i * 0.07 }}
-            className={`group rounded-2xl border ${item.border} bg-gradient-to-br ${item.accent} backdrop-blur-sm overflow-hidden hover:border-white/20 transition-all duration-300`}
+            className={`group rounded-2xl border ${item.border} bg-gradient-to-br ${item.accent} backdrop-blur-sm overflow-hidden hover:border-primary/30 transition-all duration-300`}
           >
             <div className="p-6 pb-4">
               <div className="flex items-center gap-2 mb-4">
@@ -292,8 +292,8 @@ const ShowcaseSection = () => (
                   {item.tag}
                 </span>
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">{item.title}</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed">{item.desc}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{item.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
             </div>
             <div className="mx-4 mb-4 rounded-xl border border-white/10 bg-zinc-900/60 backdrop-blur-xl p-4 min-h-[180px]">
               {item.preview}

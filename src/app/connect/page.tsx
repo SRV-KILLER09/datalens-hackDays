@@ -8,7 +8,8 @@ import {
   ArrowRight,
   CheckCircle2,
   Loader2,
-  Lock
+  Lock,
+  Database
 } from "lucide-react";
 import { SiPostgresql, SiMysql, SiSnowflake } from "react-icons/si";
 import { getDatabaseMetadata } from "../../actions/db";
@@ -24,6 +25,7 @@ export default function ConnectPage() {
   
   const [selectedDB, setSelectedDB] = useState<DBType>(null);
   const [connString, setConnString] = useState("");
+  const [connName, setConnName] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +68,7 @@ export default function ConnectPage() {
       // 2. Save to the vault
       const saveResult = await saveConnection({
         userId: session.user.id, 
-        name: `${selectedDB?.toUpperCase()} Source`,
+        name: connName.trim() || `${selectedDB?.toUpperCase()} Source`,
         provider: selectedDB!,
         uri: connString,
       });
@@ -126,6 +128,7 @@ export default function ConnectPage() {
               onClick={() => {
                 setSelectedDB(db.id as DBType);
                 setConnString(""); 
+                setConnName(`${db.name} Source`);
               }}
             >
               {isSelected && (
@@ -142,6 +145,21 @@ export default function ConnectPage() {
 
       {selectedDB && (
         <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <Database className="w-4 h-4 text-muted-foreground" />
+              <label className="text-sm font-medium">
+                Connection Name
+              </label>
+            </div>
+            <Input
+              placeholder={`${selectedDB.toUpperCase()} Source`}
+              value={connName}
+              onChange={(e) => setConnName(e.target.value)}
+              className="h-12 border-2 focus-visible:ring-primary"
+            />
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center gap-2 mb-2">
               <Lock className="w-4 h-4 text-muted-foreground" />

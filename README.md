@@ -151,6 +151,15 @@ A browser-native print layout tailored for clean corporate document sharing:
 
 ---
 
+## 📈 Text-to-SQL Studio & Vector Search Upgrades (New)
+
+- **Dynamic Connection Slugs:** Uses dynamic route matching scoped to connection ID slugs (`/dashboard/studio/[connectionId]`) and synchronized to `localStorage` (as `last_connection_id`), automatically aligning active workspaces across the dashboard, sidebar, and SQL studio.
+- **Aggregate Chart Transposition:** Automatically transposes single-row multi-column query outputs (such as `total_customers` vs `total_orders`) into individual plottable data points for Recharts bar and pie graphs.
+- **Fallback Key Selection:** Implements intelligent fallback matching of first string/non-numeric columns and first numeric columns in case of AI-recommended key mismatches.
+- **Automatic Qdrant Schema Indexing:** Schema metadata is automatically indexed into Qdrant's 3072-dimensional vector collection (`database_schemas`) via the `syncAIDocumentation` action, ensuring instant context matching for the Text-to-SQL Studio.
+
+---
+
 # 🛠 Tech Stack
 
 | Layer | Technology |

@@ -111,6 +111,21 @@ export const relationships = pgTable("relationships", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const savedQueries = pgTable("saved_queries", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  connectionId: text("connection_id").notNull(),
+  title: text("title").notNull(),
+  naturalLanguage: text("natural_language"),
+  sql: text("sql").notNull(),
+  tags: text("tags"),
+  isFavorite: boolean("is_favorite").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_saved_queries_user_conn").on(t.userId, t.connectionId),
+]);
+
 export const schemaDocImages = pgTable("schema_doc_images", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   connectionId: text("connection_id").notNull(),
