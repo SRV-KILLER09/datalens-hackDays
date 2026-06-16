@@ -2,6 +2,7 @@
 
 import { Cable, Brain, Search, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
 
 const steps = [
   {
@@ -30,8 +31,42 @@ const steps = [
   },
 ];
 
-const HowItWorksSection = () => (
-  <section id="how-it-works" className="py-24 border-t border-border/50">
+const HowItWorksSection = () => {
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!sectionRef.current) return;
+
+      const section = sectionRef.current;
+      const rect = section.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+
+      // Calculate progress based on section position in viewport
+      const sectionTop = rect.top;
+      const sectionHeight = rect.height;
+      const startTrigger = windowHeight * 0.8; // Start when section is 80% down the viewport
+      const endTrigger = windowHeight * 0.2; // End when section is 20% down the viewport
+
+      let progress = 0;
+      if (sectionTop < startTrigger && sectionTop > endTrigger - sectionHeight) {
+        progress = (startTrigger - sectionTop) / (startTrigger - (endTrigger - sectionHeight));
+      } else if (sectionTop <= endTrigger - sectionHeight) {
+        progress = 1;
+      }
+
+      setScrollProgress(Math.min(Math.max(progress, 0), 1));
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // Initial check
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+  <section id="how-it-works" ref={sectionRef} className="py-24 border-t border-border/50">
     <div className="container mx-auto px-6">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -58,7 +93,14 @@ const HowItWorksSection = () => (
             className="text-center relative"
           >
             {i < steps.length - 1 && (
-              <div className="hidden lg:block absolute top-6 left-[calc(50%+28px)] w-[calc(100%-56px)] h-px bg-border" />
+              <div className="hidden lg:block absolute top-6 left-[calc(50%+28px)] w-[calc(100%-56px)] h-px bg-border">
+                <div
+                  className="absolute top-0 left-0 h-full bg-primary transition-all duration-300 ease-out"
+                  style={{
+                    width: `${Math.min(Math.max((scrollProgress * (steps.length - 1) - i) * 100, 0), 100)}%`
+                  }}
+                />
+              </div>
             )}
             <div className="w-12 h-12 rounded-full border border-primary/30 bg-primary/10 flex items-center justify-center mx-auto mb-5 relative z-10">
               <s.icon className="w-5 h-5 text-primary" />
@@ -71,6 +113,7 @@ const HowItWorksSection = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default HowItWorksSection;

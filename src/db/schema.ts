@@ -12,8 +12,10 @@ const vector = customType<{ data: number[] }>({
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  username: text("username").unique(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull(),
+  contact: text("contact"),
   image: text("image"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
