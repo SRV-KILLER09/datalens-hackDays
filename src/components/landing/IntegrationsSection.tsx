@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Code2, Plug, Terminal, Wrench } from "lucide-react";
+import { Code2, Plug, Terminal, Wrench, Copy, Check } from "lucide-react";
+import { useState } from "react";
 
 const mcpTools = [
   "datalens_connect",
@@ -14,7 +15,26 @@ const mcpTools = [
 
 const ides = ["Cursor", "VS Code", "Antigravity"];
 
-const IntegrationsSection = () => (
+const codeContent = `{
+  "mcpServers": {
+    "datalens": {
+      "command": "node",
+      "args": [".../mcp-server/dist/index.js"],
+      "env": { ... }
+    }
+  }
+}`;
+
+const IntegrationsSection = () => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(codeContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
   <section id="integrations" className="py-24 border-t border-border/50">
     <div className="container mx-auto px-6">
       <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -66,13 +86,27 @@ const IntegrationsSection = () => (
           viewport={{ once: true }}
           className="rounded-2xl border border-border bg-card overflow-hidden shadow-2xl"
         >
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-secondary/50">
-            <div className="flex gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-zinc-700" />
-              <div className="w-3 h-3 rounded-full bg-zinc-700" />
-              <div className="w-3 h-3 rounded-full bg-zinc-700" />
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/50">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                <div className="w-3 h-3 rounded-full bg-zinc-700" />
+              </div>
+              <span className="text-[10px] text-muted-foreground font-mono ml-2">.cursor/mcp.json</span>
             </div>
-            <span className="text-[10px] text-muted-foreground font-mono ml-2">.cursor/mcp.json</span>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-background hover:bg-secondary transition-colors border border-border/50"
+              title={copied ? "Copied!" : "Copy to clipboard"}
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-green-500" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+              )}
+              <span className="text-[10px] text-muted-foreground">{copied ? "Copied" : "Copy"}</span>
+            </button>
           </div>
 
           <div className="p-5 font-mono text-xs leading-relaxed space-y-1">
@@ -116,6 +150,7 @@ const IntegrationsSection = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default IntegrationsSection;
