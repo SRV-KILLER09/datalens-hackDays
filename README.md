@@ -1,252 +1,387 @@
-# 🚀 DataLens AI  
-## ⚡ Turn Any Database Into Instant Intelligence
+# DataLens AI
+
+Turn Any Database Into Instant Intelligence
+
 ![DataLens AI](public/landingpage.png)
 
-> Stop guessing your schema. Start understanding it.
+DataLens AI automatically documents, visualizes, analyzes, and explains your database in seconds.
 
-DataLens AI automatically documents, visualizes, and explains your database in seconds.  
-Paste a connection string → get a searchable data dictionary, interactive ER diagrams, graph visualizations, and AI-powered schema exploration.
+Paste a connection string and instantly generate:
 
-Built for hackathons. Designed for real-world scale.
+* Data Dictionaries
+* Interactive ER Diagrams
+* Graph Visualizations
+* AI-Powered Schema Exploration
+* Data Quality Reports
+* Executive Business Reports
+* Documentation Portals
+* PDF, Markdown, and JSON Exports
 
----
+Supported databases:
 
-# 🏆 Problem
-
-Modern teams waste hours trying to:
-
-- Understand legacy schemas
-- Manually document databases
-- Trace foreign key relationships
-- Visualize graph connections
-- Onboard new developers
-- Explore unfamiliar data structures
-
-Documentation is outdated. Knowledge is tribal.  
-Databases become black boxes.
+* PostgreSQL
+* MySQL
+* Snowflake
+* Neo4j
 
 ---
 
-# 💡 Solution
+## Overview
 
-DataLens AI connects to your database and instantly generates:
+Modern teams waste hours trying to understand databases.
 
-- 📚 A complete Data Dictionary
-- 📊 Interactive ER Diagrams
-- 🕸 Graph Visualizations (Neo4j)
-- 🔍 Deep Table Inspection
-- 🤖 AI-Powered Schema Chat
-- 📈 Schema Analytics Dashboard
-- 🛡️ Data Quality Diagnostics & Health Score
-- ⚡ Executive Business Report & Governance Insights
-- 📖 Standalone Reference Manual Portal (Widescreen)
-- 🖨️ Premium Dark-Themed PDF & Multi-Format Exports
+Whether you're working with a legacy application, onboarding new developers, or exploring an unfamiliar schema, database documentation is often incomplete, outdated, or nonexistent.
 
-No manual work. No schema guessing. No documentation writing.
+DataLens AI automatically scans your schema and transforms it into a searchable knowledge system with visualizations, reports, and AI-powered insights.
 
 ---
 
-# 🔥 Live Demo Flow
+## The Problem
 
-1. Sign in with Google / Email
-2. Paste your database URI
-3. Click Connect
-4. Watch your schema transform into:
-   - Interactive documentation
-   - Relationship maps
-   - AI query interface
-   - Widescreen reference manual
+Teams regularly struggle with:
 
-Time to insight: **< 30 seconds**
+* Understanding legacy schemas
+* Tracing foreign key relationships
+* Maintaining documentation
+* Exploring unfamiliar databases
+* Onboarding engineers
+* Reverse-engineering business logic
+
+As systems scale, databases become black boxes.
 
 ---
 
-# ✨ Key Features
+## The Solution
 
-## 🧠 Intelligent Schema Scanner
+DataLens AI automatically extracts schema metadata and generates documentation, diagrams, reports, and AI-assisted exploration tools.
+
+### Workflow
+
+```text
+Database Connection
+        |
+        ▼
+Schema Scanner
+        |
+        ▼
+AI Documentation Engine
+        |
+        ├── Data Dictionary
+        ├── ER Diagram
+        ├── Graph Visualization
+        ├── Quality Report
+        ├── Business Report
+        └── AI Schema Assistant
+```
+
+**Time to insight: Less than 30 seconds**
+
+---
+
+## Features
+
+### Automated Data Dictionary
+
+Generate complete documentation for every table and entity.
 
 Automatically extracts:
 
-- Tables / Node Labels
-- Columns / Properties
-- Data Types
-- Primary & Foreign Keys
-- Unique Constraints
-- Row Counts
-- Sample Data
-- Indexes
+* Tables
+* Columns
+* Data Types
+* Constraints
+* Primary Keys
+* Foreign Keys
+* Indexes
+* Row Counts
+* Sample Metadata
 
----
+### Interactive ER Diagrams
 
-## 📊 Interactive ER Diagrams
+Visualize relational database structures instantly.
 
-Visualize relational structure instantly:
-
-```
-customers (1) ──────── (∞) orders
-```
-
-- Clickable nodes
-- Relationship filtering
-- Schema grouping
-- Drill-down inspection
-
----
-
-## 🕸 Graph Database Support (Neo4j)
-
-Explore graph relationships visually:
-
-```
-(:Person {name:"John Doe"})
-        ── ACTED_IN ──>
-(:Movie {title:"The Matrix"})
+```text
+customers (1)
+      |
+      ▼
+orders (∞)
 ```
 
-See:
+Capabilities:
 
-- Node labels
-- Edge types
-- Property structures
-- Relationship distributions
+* Interactive navigation
+* Relationship exploration
+* Dependency tracing
+* Schema grouping
+* Drill-down inspection
+
+### Graph Visualization
+
+Explore graph databases visually.
+
+Example:
+
+```cypher
+(:Person)-[:ACTED_IN]->(:Movie)
+```
+
+Visualize:
+
+* Node Labels
+* Relationship Types
+* Property Structures
+* Connectivity Maps
+* Distribution Metrics
+
+### AI Schema Assistant
+
+Ask questions about your schema using natural language.
+
+Examples:
+
+```text
+Which tables reference customers?
+
+Explain the orders schema.
+
+How many foreign keys exist?
+
+What relationships does Movie have?
+```
+
+The AI operates entirely on schema metadata, ensuring sensitive row-level data is never exposed.
+
+### Data Quality Diagnostics
+
+Automatically evaluate database design quality.
+
+Generated insights include:
+
+* Database Health Score
+* Structural Grade
+* Naming Consistency
+* Constraint Coverage
+* Relationship Integrity
+* Quality Warnings
+
+Detect issues such as:
+
+* Missing primary keys
+* Missing foreign keys
+* Inconsistent naming
+* Orphaned relationships
+* Structural anti-patterns
+
+### Executive Business Reports
+
+Generate executive-level summaries of your database.
+
+Includes:
+
+* Business Domain Detection
+* Schema Overview
+* Governance Analysis
+* Risk Assessment
+* Key Findings
+* Documentation Quality Review
+
+Powered by Gemini 2.5 Flash.
+
+### Documentation Portal
+
+Dedicated widescreen documentation experience.
+
+Features:
+
+* Fullscreen reference manuals
+* Live search
+* Interactive relationship maps
+* Cross-table navigation
+* Markdown rendering
+
+Route:
+
+```text
+/dashboard/tables/[id]/document
+```
+
+### Export Engine
+
+Export documentation in multiple formats.
+
+Supported exports:
+
+* PDF
+* Markdown
+* JSON
+* Data Dictionary Reports
+* Executive Reports
+
+### Text-to-SQL Studio
+
+Convert natural language into executable SQL.
+
+Features:
+
+* AI-assisted SQL generation
+* Interactive query execution
+* Aggregate chart generation
+* Query visualizations
+* Workspace synchronization
+
+### Vector Search
+
+Schema metadata is automatically indexed into Qdrant.
+
+Benefits:
+
+* Semantic search
+* Context-aware retrieval
+* Faster schema discovery
+* Improved SQL generation
+
+### API Agent
+
+Generate custom API endpoints directly from database schemas.
+
+The agent can:
+
+* Explore schemas
+* Generate route handlers
+* Create parameterized queries
+* Test endpoints
+* Manage custom APIs
+
+Generated routes:
+
+```text
+src/app/api/custom/[slug]/route.ts
+```
+
+Example prompt:
+
+```text
+Create an authenticated endpoint that returns total customers.
+```
 
 ---
 
-## 🛡️ Data Quality Diagnostics & Health Score (New)
+## VS Code and Cursor Integration
 
-Automatically audit your database layout for structural integrity:
-- **Estimated Database Grade:** A dynamic radial health SVG tracking overall database design scores.
-- **Data Type Profile:** Visual breakdown chart detailing string, numeric, temporal, boolean, and other data field ratios.
-- **Quality Audit Issues Log:** Identifies critical issues and warning items (like missing constraints, key inconsistencies, or poor naming structures) with intelligent remediation recommendations.
+Use DataLens AI directly inside Cursor or VS Code through MCP.
 
----
-
-## 📖 Widescreen Reference Manual & Portal (New)
-
-A dedicated fullscreen documentation view accessible at `/dashboard/tables/[id]/document` featuring:
-- **Interactive Entity Network Graph:** A dynamic coordinate-mapped circular SVG relationship visualization highlighting schema pathways.
-- **Table Navigation Sidebar:** Live sidebar featuring an instant keyword search bar filtering tables and columns.
-- **Book-Style Markdown Layout:** Beautifully structured markdown headings, uppercase monospace typography, and clean borders.
-
----
-
-## 🖨️ Premium Dark-Themed PDF Print Engine (New)
-
-A browser-native print layout tailored for clean corporate document sharing:
-- **Opaque Dark Theme:** Custom overrides forcing solid dark backgrounds (`#0d0d0d`, `#141414`) and contrasting white/grey text colors, completely avoiding browser print engine washouts.
-- **Page-Break Safeguards:** Keeps table rows (`tr`), headers, metrics grids, and overview cards on single pages cleanly, preventing orphan headings from showing up at the bottom of pages.
-- **Multi-Format Exports:** Export options for Raw Dict JSON, Dict MD, Full Report MD, and Full Report JSON files.
-
----
-
-## 🤖 AI Schema Chat & Business Report Generator
-
-- **Executive Overview:** Formulates target domain labels, business overview descriptions, key findings, data governance scopes, and overall schema health assessments using Gemini 2.5 Flash.
-- **AI Schema Chat:** Ask:
-  - “Which tables reference customers?”
-  - “Explain the orders schema.”
-  - “What relationships does Movie have?”
-  - “How many foreign keys exist?”
-  - The AI operates entirely on schema metadata — ensuring zero raw sensitive data exposure.
-
----
-
-## 📈 Text-to-SQL Studio & Vector Search Upgrades (New)
-
-- **Dynamic Connection Slugs:** Uses dynamic route matching scoped to connection ID slugs (`/dashboard/studio/[connectionId]`) and synchronized to `localStorage` (as `last_connection_id`), automatically aligning active workspaces across the dashboard, sidebar, and SQL studio.
-- **Aggregate Chart Transposition:** Automatically transposes single-row multi-column query outputs (such as `total_customers` vs `total_orders`) into individual plottable data points for Recharts bar and pie graphs.
-- **Fallback Key Selection:** Implements intelligent fallback matching of first string/non-numeric columns and first numeric columns in case of AI-recommended key mismatches.
-- **Automatic Qdrant Schema Indexing:** Schema metadata is automatically indexed into Qdrant's 3072-dimensional vector collection (`database_schemas`) via the `syncAIDocumentation` action, ensuring instant context matching for the Text-to-SQL Studio.
-
----
-
-# 🛠 Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | Next.js 16 (App Router + Turbopack) |
-| UI | Tailwind CSS + shadcn/ui + Lucide Icons |
-| Backend | Next.js Server Actions & API Routes |
-| ORM | Drizzle ORM |
-| Auth | Better Auth (Google OAuth & Credentials) |
-| Databases | PostgreSQL, MySQL, Snowflake, Neo4j |
-| Embeddings | Mixedbread AI (High-dimensional Vector embeddings) |
-| Vector DB | Qdrant Cloud |
-| LLM | Gemini 2.5 Flash (API Key access) |
-| Language | TypeScript |
-| Deployment | Vercel |
-
----
-
-# 🔌 VS Code / Cursor MCP Integration
-
-Use DataLens AI directly in **Cursor** or **VS Code** via the MCP server:
+### Setup
 
 ```bash
 cd vscode-extension/mcp-server
-npm install && npm run build
+
+npm install
+
+npm run build
 ```
 
-Copy `.cursor/mcp.json.example` to `.cursor/mcp.json` and set your `DATALENS_DATABASE_URL`.
+Configure:
 
-See **[vscode/README.md](vscode/README.md)** for Cursor, VS Code, and Antigravity setup (paths + config). MCP tools: schema scan, documentation, queries, data quality, AI chat.
+```json
+{
+  "DATALENS_DATABASE_URL": "your_database_url"
+}
+```
 
----
+Available MCP tools:
 
-# 🤖 AI API Route Generator Agent (CLI & Web Sandbox)
-
-DataLens AI features an interactive, session-based AI Agent that can explore your database schema, check data quality, and **automatically write Next.js Route Handlers** (`src/app/api/custom/[slug]/route.ts`) to expose custom data endpoints on the fly. 
-
-This agent is available via **both** the CLI terminal and the Web Sandbox console.
-
-### ✨ Features
-*   **Web Agent Console Tab:** Dedicated **API Agent (Beta)** workspace in the database detail dashboard containing real-time code output and schema context generation.
-*   **Interactive Testing Playground:** Execute, query, and test generated custom APIs in real-time with custom parameter inputs directly inside the browser.
-*   **Persistent Chat History:** Seamlessly stores agent conversation records in local storage (`localStorage`) keyed by `connectionId`. Switch tabs or reload without losing progress, and clear history instantly with the header Trash control.
-*   **Safe Parametrized Queries:** Upgraded backend architecture to support parametrized SQL queries (e.g. `SELECT * FROM table WHERE col = $1` with parameter binding variables) in generated API routes to protect against SQL injection.
-*   **Active APIs Management:** Expand to view raw generated TypeScript code, test endpoints with custom request parameters, or delete generated routes with one click.
-*   **CLI Agent Tool:** Retro ASCII interactive terminal console with shell command support.
-
-### 💻 CLI Agent Setup & Usage
-1. Add your target database connection ID to your `.env` file (you can find these in the `connections` table):
-   ```env
-   ACTIVE_CONNECTION_ID="your_connection_id"
-   ```
-2. Start the interactive CLI session:
-   ```bash
-   npx tsx scripts/agent-cli.ts
-   ```
-3. Command the agent using natural language prompts:
-   *   *“List my tables”*
-   *   *“Create an authenticated GET endpoint with slug 'total-customers' that returns the count of rows from olist_customers_dataset”*
-   *   *“List all custom API endpoints”*
-   *   *“Delete the endpoint with slug 'total-customers'”*
+* Schema Scan
+* Documentation Generation
+* AI Chat
+* Data Quality Analysis
+* Query Execution
 
 ---
 
-# ⚙️ Installation
+## Architecture
+
+```text
+                 +----------------+
+                 |   Database     |
+                 +-------+--------+
+                         |
+                         ▼
+                Schema Extraction
+                         |
+                         ▼
+             AI Documentation Engine
+                         |
+      +------------------+------------------+
+      |                  |                  |
+      ▼                  ▼                  ▼
+Data Dictionary    ER Diagram       Graph View
+      |                  |                  |
+      +---------+--------+---------+--------+
+                |                  |
+                ▼                  ▼
+         Qdrant Vector DB      Gemini AI
+                |                  |
+                +--------+---------+
+                         |
+                         ▼
+                   Dashboard
+```
+
+---
+
+## Technology Stack
+
+| Layer           | Technology                          |
+| --------------- | ----------------------------------- |
+| Frontend        | Next.js 16                          |
+| UI              | Tailwind CSS + shadcn/ui            |
+| Backend         | Next.js API Routes                  |
+| ORM             | Drizzle ORM                         |
+| Authentication  | Better Auth                         |
+| Databases       | PostgreSQL, MySQL, Snowflake, Neo4j |
+| LLM             | Gemini 2.5 Flash                    |
+| Embeddings      | Mixedbread AI                       |
+| Vector Database | Qdrant Cloud                        |
+| Language        | TypeScript                          |
+| Deployment      | Vercel                              |
+
+---
+
+## Installation
+
+### Clone Repository
 
 ```bash
-git clone https://github.com/your-org/data-lens-ai.git
-cd data-lens-ai
+git clone https://github.com/your-org/datalens-ai.git
+
+cd datalens-ai
+```
+
+### Install Dependencies
+
+```bash
 npm install
 ```
 
-Create `.env`:
+### Configure Environment Variables
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/mydb
-BETTER_AUTH_SECRET=your_secret
-BETTER_AUTH_URL=http://localhost:3000
-GOOGLE_CLIENT_ID=your_id
-GOOGLE_CLIENT_SECRET=your_secret
-GEMINI_API_KEY=your_gemini_key
-QDRANT_URL=your_qdrant_url
-QDRANT_API_KEY=your_qdrant_key
-MIXEDBREAD_API_KEY=your_mixedbread_key
+DATABASE_URL=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+GEMINI_API_KEY=
+
+QDRANT_URL=
+QDRANT_API_KEY=
+
+MIXEDBREAD_API_KEY=
 ```
 
-Run:
+### Run Development Server
 
 ```bash
 npm run dev
@@ -254,47 +389,62 @@ npm run dev
 
 Open:
 
-```
+```text
 http://localhost:3000
 ```
 
 ---
 
-# 🔐 Security
+## Security
 
-- Server-side metadata scanning
-- No raw data permanently stored
-- OAuth-based authentication
-- Secure session handling
-- AI operates on schema, not rows
+DataLens AI follows a metadata-first architecture.
 
----
+### Security Principles
 
-# 🚀 Future Scope
-
-- [x] Documentation export (PDF / Markdown / JSON)  
-- [x] Data quality scoring & diagnostics
-- Column-level lineage tracking  
-- Schema versioning  
-- Slack / Notion integration  
-- Advanced graph analytics  
+* Server-side schema scanning
+* OAuth authentication
+* Secure session handling
+* No permanent row storage
+* Metadata-only AI analysis
+* Parameterized query generation
 
 ---
 
-# 👥 Team Vision
+## Roadmap
+
+### Completed
+
+* Automated Data Dictionary
+* Interactive ER Diagrams
+* Graph Visualization
+* AI Schema Assistant
+* PDF Export
+* Data Quality Diagnostics
+* Executive Reports
+* Vector Search
+* API Agent
+
+### Planned
+
+* Schema Versioning
+* Column-Level Lineage
+* Slack Integration
+* Notion Integration
+* Advanced Graph Analytics
+* Team Collaboration
+
+---
+
+## Team Vision
 
 We believe data should explain itself.
 
-DataLens AI transforms any database into a living, visual, searchable knowledge system.
+DataLens AI transforms databases into living, searchable, and visual knowledge systems that help teams understand data faster and make better decisions.
 
 ---
 
-# 📜 License
+## License
 
 MIT License
 
 ---
-
-# ⚡ DataLens AI
-
-Understand your database in seconds — not weeks.
